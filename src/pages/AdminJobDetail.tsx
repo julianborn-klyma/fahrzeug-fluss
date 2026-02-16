@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
+import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import { Label } from '@/components/ui/label';
 import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
 import { toast } from 'sonner';
@@ -52,6 +53,8 @@ const AdminJobDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reqFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const job = jobs.find((j) => j.id === id);
 
@@ -306,13 +309,22 @@ const AdminJobDetail = () => {
             {documents.map((d) => (
               <Card key={d.id}>
                 <CardContent className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{d.file_name}</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{d.file_name}</span>
                     {d.document_type && <Badge variant="secondary" className="text-xs">{d.document_type.name}</Badge>}
                     {d.trade && <Badge variant="outline" className="text-xs">{d.trade}</Badge>}
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                      setPreviewLoading(true);
+                      setPreviewDoc({ fileName: d.file_name, url: null });
+                      const url = await getDownloadUrl(d.file_path);
+                      setPreviewDoc({ fileName: d.file_name, url: url || null });
+                      setPreviewLoading(false);
+                    }}>
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(d.file_path, d.file_name)}>
                       <Download className="h-3.5 w-3.5" />
                     </Button>
@@ -421,6 +433,15 @@ const AdminJobDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Document Preview */}
+      <DocumentPreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(o) => { if (!o) setPreviewDoc(null); }}
+        fileName={previewDoc?.fileName || ''}
+        fileUrl={previewDoc?.url || null}
+        loading={previewLoading}
+      />
     </div>
   );
 };
