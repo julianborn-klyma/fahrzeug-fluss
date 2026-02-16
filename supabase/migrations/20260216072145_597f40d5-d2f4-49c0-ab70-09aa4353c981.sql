@@ -1,0 +1,1 @@
+ALTER TABLE public.bonus_settings ADD COLUMN module_fahrzeuglager_enabled boolean NOT NULL DEFAULT true;
