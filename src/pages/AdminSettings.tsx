@@ -38,9 +38,9 @@ const AdminSettings = () => {
               Benutzer
             </TabsTrigger>
             {!isOffice && (
-              <TabsTrigger value="projektarten" className="gap-2">
+              <TabsTrigger value="montage" className="gap-2">
                 <FolderKanban className="h-4 w-4" />
-                Projektarten
+                Montage
               </TabsTrigger>
             )}
             {lagerEnabled && (
@@ -88,7 +88,7 @@ const AdminSettings = () => {
             </div>
           </TabsContent>
           {!isOffice && (
-            <TabsContent value="projektarten">
+            <TabsContent value="montage">
               <SettingsOrderTypes />
             </TabsContent>
           )}
