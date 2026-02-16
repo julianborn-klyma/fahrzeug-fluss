@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload } from 'lucide-react';
+import AppointmentCard from '@/components/montage/AppointmentCard';
 import { Label } from '@/components/ui/label';
 import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
 import { toast } from 'sonner';
@@ -163,33 +164,7 @@ const AdminJobDetail = () => {
               <p className="text-sm text-muted-foreground py-4">Keine Termine angelegt.</p>
             ) : (
               appointments.map((a) => (
-                <Card key={a.id}>
-                  <CardContent className="p-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{a.appointment_type?.name || 'Termin'}</span>
-                        {a.appointment_type?.trade && (
-                          <Badge variant="outline" className="text-xs">
-                            {TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}
-                          </Badge>
-                        )}
-                        <Badge variant={a.appointment_type?.is_internal ? 'default' : 'secondary'} className="text-xs">
-                          {a.appointment_type?.is_internal ? 'Intern' : 'Extern'}
-                        </Badge>
-                      </div>
-                      <Badge variant={a.status === 'abgeschlossen' ? 'default' : a.status === 'geplant' ? 'secondary' : 'outline'} className="text-xs">
-                        {a.status}
-                      </Badge>
-                    </div>
-                    {a.start_date && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(a.start_date).toLocaleDateString('de-DE')}
-                        {a.end_date && ` – ${new Date(a.end_date).toLocaleDateString('de-DE')}`}
-                      </p>
-                    )}
-                    {a.notes && <p className="text-xs mt-1">{a.notes}</p>}
-                  </CardContent>
-                </Card>
+                <AppointmentCard key={a.id} appointment={a} />
               ))
             )}
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setShowAddAppointment(true)}>
