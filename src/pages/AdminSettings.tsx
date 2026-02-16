@@ -19,6 +19,7 @@ const AdminSettings = () => {
   const isOffice = hasRole('office') && !hasRole('admin') && !hasRole('teamleiter');
   const perfEnabled = !isOffice && (settings?.module_performance_enabled ?? true);
   const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
+  const klymaOsEnabled = !isOffice && (settings?.module_klyma_os_enabled ?? true);
   const [lagerSubTab, setLagerSubTab] = useState<'inventory' | 'vehicles' | 'vehicleTypes'>('inventory');
   const [userSubTab, setUserSubTab] = useState<'users' | 'teams'>('users');
 
@@ -37,7 +38,7 @@ const AdminSettings = () => {
               <Users className="h-4 w-4" />
               Benutzer
             </TabsTrigger>
-            {!isOffice && (
+            {klymaOsEnabled && (
               <TabsTrigger value="montage" className="gap-2">
                 <FolderKanban className="h-4 w-4" />
                 Montage
@@ -87,7 +88,7 @@ const AdminSettings = () => {
               {userSubTab === 'teams' && <SettingsTeams />}
             </div>
           </TabsContent>
-          {!isOffice && (
+          {klymaOsEnabled && (
             <TabsContent value="montage">
               <SettingsOrderTypes />
             </TabsContent>
