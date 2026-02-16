@@ -759,12 +759,14 @@ export type Database = {
           active_trades: Database["public"]["Enums"]["trade_type"][]
           assigned_to: string[] | null
           client_id: string | null
+          contact_person_id: string | null
           created_at: string
           description: string | null
           estimated_hours: number | null
           id: string
           job_number: string
           order_type_id: string | null
+          planner_id: string | null
           property_id: string | null
           status: Database["public"]["Enums"]["job_status"]
           title: string
@@ -775,12 +777,14 @@ export type Database = {
           active_trades?: Database["public"]["Enums"]["trade_type"][]
           assigned_to?: string[] | null
           client_id?: string | null
+          contact_person_id?: string | null
           created_at?: string
           description?: string | null
           estimated_hours?: number | null
           id?: string
           job_number?: string
           order_type_id?: string | null
+          planner_id?: string | null
           property_id?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
@@ -791,12 +795,14 @@ export type Database = {
           active_trades?: Database["public"]["Enums"]["trade_type"][]
           assigned_to?: string[] | null
           client_id?: string | null
+          contact_person_id?: string | null
           created_at?: string
           description?: string | null
           estimated_hours?: number | null
           id?: string
           job_number?: string
           order_type_id?: string | null
+          planner_id?: string | null
           property_id?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
@@ -812,11 +818,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "jobs_contact_person_id_fkey"
+            columns: ["contact_person_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "jobs_order_type_id_fkey"
             columns: ["order_type_id"]
             isOneToOne: false
             referencedRelation: "order_types"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "jobs_property_id_fkey"
