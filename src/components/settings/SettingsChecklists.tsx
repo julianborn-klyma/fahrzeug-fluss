@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useChecklistTemplates } from '@/hooks/useChecklistTemplates';
-import { useOrderTypes } from '@/hooks/useOrderTypes';
+import { useAppointmentTypes } from '@/hooks/useAppointmentTypes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,15 +11,10 @@ import EditChecklistDialog from './EditChecklistDialog';
 
 const SettingsChecklists = () => {
   const { templates, loading, deleteTemplate } = useChecklistTemplates();
-  const { orderTypes } = useOrderTypes();
+  const { appointmentTypes } = useAppointmentTypes();
   const [filterAtId, setFilterAtId] = useState<string>('all');
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [creating, setCreating] = useState(false);
-
-  // Flatten all appointment types
-  const allAppointmentTypes = orderTypes.flatMap((ot: any) =>
-    (ot.appointment_types || []).map((at: any) => ({ ...at, orderTypeName: ot.name }))
-  );
 
   const filtered = filterAtId === 'all'
     ? templates
@@ -39,8 +34,8 @@ const SettingsChecklists = () => {
           <SelectTrigger><SelectValue placeholder="Alle Terminarten" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Terminarten</SelectItem>
-            {allAppointmentTypes.map((at: any) => (
-              <SelectItem key={at.id} value={at.id}>{at.orderTypeName} → {at.name}</SelectItem>
+            {appointmentTypes.map((at: any) => (
+              <SelectItem key={at.id} value={at.id}>{at.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -54,7 +49,7 @@ const SettingsChecklists = () => {
       )}
 
       {filtered.map((t: any) => {
-        const at = allAppointmentTypes.find((a: any) => a.id === t.appointment_type_id);
+        const at = appointmentTypes.find((a: any) => a.id === t.appointment_type_id);
         return (
           <Card key={t.id}>
             <CardContent className="p-4 flex items-center justify-between">
@@ -64,8 +59,10 @@ const SettingsChecklists = () => {
                   {t.is_standard && <Badge className="text-xs">Standard</Badge>}
                 </div>
                 {t.description && <p className="text-sm text-muted-foreground">{t.description}</p>}
-                {at && <Badge variant="outline" className="text-xs">{at.orderTypeName} → {at.name}</Badge>}
-                <Badge variant="secondary" className="text-xs">{(t.steps || []).length} Schritte</Badge>
+                <div className="flex flex-wrap gap-1">
+                  {at && <Badge variant="outline" className="text-xs">Terminart: {at.name}</Badge>}
+                  <Badge variant="secondary" className="text-xs">{(t.steps || []).length} Schritte</Badge>
+                </div>
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingTemplate(t)}>
@@ -88,7 +85,7 @@ const SettingsChecklists = () => {
           template={editingTemplate}
           open={true}
           onOpenChange={(open) => { if (!open) { setEditingTemplate(null); setCreating(false); } }}
-          appointmentTypes={allAppointmentTypes}
+          appointmentTypes={appointmentTypes}
         />
       )}
     </div>
