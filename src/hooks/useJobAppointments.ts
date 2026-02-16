@@ -51,14 +51,16 @@ export const useJobAppointments = (jobId?: string) => {
   });
 
   const createDefaultAppointments = async (jobId: string, orderTypeId: string) => {
-    const { data: types } = await supabase
-      .from('appointment_types')
-      .select('id')
+    // Get appointment types via junction table
+    const { data: junctions } = await supabase
+      .from('order_type_appointment_types')
+      .select('appointment_type_id, appointment_types(is_active)')
       .eq('order_type_id', orderTypeId)
-      .eq('is_active', true)
       .order('display_order');
-    if (!types || types.length === 0) return;
-    const inserts = types.map((t: any) => ({ job_id: jobId, appointment_type_id: t.id }));
+    if (!junctions || junctions.length === 0) return;
+    const activeTypes = junctions.filter((j: any) => j.appointment_types?.is_active !== false);
+    const inserts = activeTypes.map((j: any) => ({ job_id: jobId, appointment_type_id: j.appointment_type_id }));
+    if (inserts.length === 0) return;
     await supabase.from('job_appointments').insert(inserts as any);
     queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
   };
