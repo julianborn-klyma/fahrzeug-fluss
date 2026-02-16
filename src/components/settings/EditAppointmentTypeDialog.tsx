@@ -39,7 +39,7 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
   // Settings state
   const [name, setName] = useState(appointmentType.name);
   const [description, setDescription] = useState(appointmentType.description || '');
-  const [trade, setTrade] = useState<string>(appointmentType.trade || '');
+  
   const [isInternal, setIsInternal] = useState(appointmentType.is_internal);
   const [isActive, setIsActive] = useState(appointmentType.is_active !== false);
 
@@ -57,7 +57,7 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
 
   const handleSaveSettings = async () => {
     const { error } = await supabase.from('appointment_types').update({
-      name, description, trade: trade || null, is_internal: isInternal, is_active: isActive,
+      name, description, is_internal: isInternal, is_active: isActive,
     } as any).eq('id', appointmentType.id);
     if (error) { toast.error('Fehler.'); return; }
     queryClient.invalidateQueries({ queryKey: ['order-types'] });
@@ -116,16 +116,6 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
           <TabsContent value="settings" className="space-y-4 mt-4">
             <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label>Beschreibung</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-            <div>
-              <Label>Gewerk</Label>
-              <Select value={trade} onValueChange={setTrade}>
-                <SelectTrigger><SelectValue placeholder="Kein Gewerk" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Kein Gewerk</SelectItem>
-                  {Object.entries(TRADE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-center justify-between">
               <Label>Intern</Label>
               <Switch checked={isInternal} onCheckedChange={setIsInternal} />

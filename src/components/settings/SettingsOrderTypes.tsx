@@ -9,8 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Settings2, FolderKanban, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import EditAppointmentTypeDialog from './EditAppointmentTypeDialog';
+import SettingsChecklists from './SettingsChecklists';
 import EditOrderTypeDialog from './EditOrderTypeDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,7 +25,7 @@ const SettingsOrderTypes = () => {
   const [editingAppointmentType, setEditingAppointmentType] = useState<any>(null);
   const [addingToOrderType, setAddingToOrderType] = useState<string | null>(null);
   const [newAtName, setNewAtName] = useState('');
-  const [newAtTrade, setNewAtTrade] = useState<string>('');
+
 
   const handleCreateOrderType = async () => {
     if (!newName.trim()) return;
@@ -49,13 +49,11 @@ const SettingsOrderTypes = () => {
     const { error } = await supabase.from('appointment_types').insert({
       order_type_id: addingToOrderType,
       name: newAtName.trim(),
-      trade: newAtTrade || null,
     } as any).select();
     if (error) { toast.error('Fehler.'); return; }
     queryClient.invalidateQueries({ queryKey: ['order-types'] });
     setAddingToOrderType(null);
     setNewAtName('');
-    setNewAtTrade('');
     toast.success('Terminart hinzugefügt.');
   };
 
@@ -83,11 +81,7 @@ const SettingsOrderTypes = () => {
         ))}
       </div>
 
-      {subTab === 'checklisten' && (
-        <div className="text-muted-foreground text-sm py-8 text-center">
-          Checklisten-Verwaltung kommt bald.
-        </div>
-      )}
+      {subTab === 'checklisten' && <SettingsChecklists />}
 
       {subTab === 'projektarten' && (
       <div className="space-y-4">
@@ -126,7 +120,6 @@ const SettingsOrderTypes = () => {
                   <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{at.name}</span>
-                      {at.trade && <Badge variant="outline" className="text-xs">{TRADE_LABELS[at.trade as TradeType] || at.trade}</Badge>}
                       <Badge variant={at.is_internal ? 'default' : 'secondary'} className="text-xs">
                         {at.is_internal ? 'Intern' : 'Extern'}
                       </Badge>
@@ -144,7 +137,7 @@ const SettingsOrderTypes = () => {
                 </Card>
               ))}
 
-              <Button variant="outline" size="sm" className="gap-1 w-full" onClick={() => { setAddingToOrderType(ot.id); setNewAtName(''); setNewAtTrade(''); }}>
+              <Button variant="outline" size="sm" className="gap-1 w-full" onClick={() => { setAddingToOrderType(ot.id); setNewAtName(''); }}>
                 <Plus className="h-3 w-3" /> Terminart hinzufügen
               </Button>
             </AccordionContent>
@@ -171,13 +164,6 @@ const SettingsOrderTypes = () => {
           <DialogHeader><DialogTitle>Terminart hinzufügen</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Name</Label><Input value={newAtName} onChange={(e) => setNewAtName(e.target.value)} /></div>
-            <div>
-              <Label>Gewerk</Label>
-              <select className="w-full border rounded-md p-2 text-sm" value={newAtTrade} onChange={(e) => setNewAtTrade(e.target.value)}>
-                <option value="">Kein Gewerk</option>
-                {Object.entries(TRADE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
             <Button onClick={handleAddAppointmentType} className="w-full">Hinzufügen</Button>
           </div>
         </DialogContent>

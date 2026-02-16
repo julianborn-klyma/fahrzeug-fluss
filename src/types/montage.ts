@@ -135,19 +135,25 @@ export interface JobDocument {
 export interface ChecklistTemplate {
   id: string;
   name: string;
+  description: string;
   trade: TradeType | null;
+  appointment_type_id: string | null;
   is_standard: boolean;
   created_at: string;
   steps?: ChecklistTemplateStep[];
+  appointment_type?: AppointmentType;
 }
 
 export interface ChecklistTemplateStep {
   id: string;
   template_id: string;
   title: string;
+  description: string;
   step_type: string;
   order_index: number;
   is_required: boolean;
+  parent_step_id: string | null;
+  options: any[];
   created_at: string;
 }
 
