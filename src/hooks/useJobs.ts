@@ -10,7 +10,7 @@ export const useJobs = () => {
     queryFn: async (): Promise<Job[]> => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('*, properties(*), clients(*), order_types(*)')
+        .select('*, properties(*), clients(*), order_types(*), contacts!jobs_contact_person_id_fkey(*), profiles!jobs_planner_id_fkey(*)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []).map((d: any) => ({
@@ -21,6 +21,8 @@ export const useJobs = () => {
         property: d.properties || undefined,
         client: d.clients || undefined,
         order_type: d.order_types || undefined,
+        contact_person: d.contacts || undefined,
+        planner: d.profiles || undefined,
       }));
     },
   });
@@ -60,7 +62,7 @@ export const useAssignedJobs = (userId: string | undefined) => {
     queryFn: async (): Promise<Job[]> => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('*, properties(*), clients(*), order_types(*)')
+        .select('*, properties(*), clients(*), order_types(*), contacts!jobs_contact_person_id_fkey(*), profiles!jobs_planner_id_fkey(*)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || [])
@@ -72,6 +74,8 @@ export const useAssignedJobs = (userId: string | undefined) => {
           property: d.properties || undefined,
           client: d.clients || undefined,
           order_type: d.order_types || undefined,
+          contact_person: d.contacts || undefined,
+          planner: d.profiles || undefined,
         }))
         .filter((j: Job) => j.assigned_to.includes(userId!));
     },

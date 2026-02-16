@@ -66,6 +66,8 @@ export interface Job {
   property_id: string | null;
   client_id: string | null;
   order_type_id: string | null;
+  contact_person_id: string | null;
+  planner_id: string | null;
   status: JobStatus;
   trades: TradeType[];
   active_trades: TradeType[];
@@ -77,6 +79,8 @@ export interface Job {
   property?: Property;
   client?: Client;
   order_type?: OrderType;
+  contact_person?: Contact;
+  planner?: { id: string; name: string; email: string; user_id: string };
 }
 
 export interface JobTradeDetail {

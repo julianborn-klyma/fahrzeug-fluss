@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
@@ -11,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
 import { Label } from '@/components/ui/label';
 import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
@@ -21,14 +23,34 @@ import { supabase } from '@/integrations/supabase/client';
 const AdminJobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { jobs, loading } = useJobs();
+  const { jobs, loading, updateJob } = useJobs();
   const { documents, uploadDocument, deleteDocument, getDownloadUrl } = useJobDocuments(id);
   const { checklists } = useJobChecklists(id);
   const { appointments, createJobAppointment } = useJobAppointments(id);
   const { orderTypes } = useOrderTypes();
 
+  // Fetch all contacts for contact person selector
+  const { data: allContacts } = useQuery({
+    queryKey: ['all-contacts'],
+    queryFn: async () => {
+      const { data } = await supabase.from('contacts').select('*').order('last_name');
+      return data || [];
+    },
+  });
+
+  // Fetch all profiles for planner selector
+  const { data: allProfiles } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('*').order('name');
+      return data || [];
+    },
+  });
+
   const [showAddAppointment, setShowAddAppointment] = useState(false);
   const [selectedAppTypeId, setSelectedAppTypeId] = useState('');
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reqFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null);
@@ -137,6 +159,61 @@ const AdminJobDetail = () => {
           {job.property.street_address}, {job.property.postal_code} {job.property.city}
         </p>
       )}
+
+      {/* Contact Person & Planner */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Ansprechpartner</span>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowContactPicker(true); setContactSearch(''); }}>
+                {job.contact_person ? 'Ändern' : 'Zuweisen'}
+              </Button>
+            </div>
+            {job.contact_person ? (
+              <div className="mt-1">
+                <p className="text-sm font-medium">{job.contact_person.first_name} {job.contact_person.last_name}</p>
+                {job.contact_person.email && <p className="text-xs text-muted-foreground">{job.contact_person.email}</p>}
+                {job.contact_person.phone && <p className="text-xs text-muted-foreground">{job.contact_person.phone}</p>}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">Kein Ansprechpartner zugewiesen</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserCog className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Auftragsplaner</span>
+              </div>
+            </div>
+            <Select
+              value={job.planner_id || ''}
+              onValueChange={async (val) => {
+                try {
+                  await updateJob.mutateAsync({ id: job.id, planner_id: val || null } as any);
+                  toast.success('Auftragsplaner aktualisiert.');
+                } catch { toast.error('Fehler.'); }
+              }}
+            >
+              <SelectTrigger className="mt-1 h-8 text-sm">
+                <SelectValue placeholder="Planer wählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(allProfiles || []).map((p: any) => (
+                  <SelectItem key={p.user_id} value={p.user_id}>{p.name || p.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      </div>
 
       {job.description && <p className="text-sm">{job.description}</p>}
 
@@ -308,6 +385,67 @@ const AdminJobDetail = () => {
               </Select>
             </div>
             <Button onClick={handleAddAppointment} disabled={!selectedAppTypeId} className="w-full">Hinzufügen</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Person Picker Dialog */}
+      <Dialog open={showContactPicker} onOpenChange={setShowContactPicker}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ansprechpartner wählen</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {/* Option: use client's contact */}
+            {job?.client?.contact_id && (() => {
+              const clientContact = (allContacts || []).find((c: any) => c.id === job.client!.contact_id);
+              return clientContact ? (
+                <Card
+                  className="cursor-pointer hover:border-primary/50"
+                  onClick={async () => {
+                    try {
+                      await updateJob.mutateAsync({ id: job.id, contact_person_id: clientContact.id } as any);
+                      setShowContactPicker(false);
+                      toast.success('Ansprechpartner gesetzt.');
+                    } catch { toast.error('Fehler.'); }
+                  }}
+                >
+                  <CardContent className="p-3">
+                    <p className="text-sm font-medium">{clientContact.first_name} {clientContact.last_name}</p>
+                    <p className="text-xs text-muted-foreground">Kunde</p>
+                  </CardContent>
+                </Card>
+              ) : null;
+            })()}
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Kontakt suchen…" value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} className="pl-9" />
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {(allContacts || [])
+                .filter((c: any) => {
+                  if (!contactSearch.trim()) return true;
+                  const s = contactSearch.toLowerCase();
+                  return `${c.first_name} ${c.last_name} ${c.email || ''}`.toLowerCase().includes(s);
+                })
+                .map((c: any) => (
+                  <Card
+                    key={c.id}
+                    className="cursor-pointer hover:border-primary/50"
+                    onClick={async () => {
+                      try {
+                        await updateJob.mutateAsync({ id: job!.id, contact_person_id: c.id } as any);
+                        setShowContactPicker(false);
+                        toast.success('Ansprechpartner gesetzt.');
+                      } catch { toast.error('Fehler.'); }
+                    }}
+                  >
+                    <CardContent className="p-3">
+                      <p className="text-sm font-medium">{c.first_name} {c.last_name}</p>
+                      {c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

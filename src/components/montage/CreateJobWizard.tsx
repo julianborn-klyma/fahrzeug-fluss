@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { useProperties } from '@/hooks/useProperties';
 import { useJobs } from '@/hooks/useJobs';
 import { useOrderTypes } from '@/hooks/useOrderTypes';
 import { useJobAppointments } from '@/hooks/useJobAppointments';
+import { supabase } from '@/integrations/supabase/client';
 import type { Client, Property } from '@/types/montage';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
@@ -49,6 +51,16 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
   const [orderTypeId, setOrderTypeId] = useState('');
   const [description, setDescription] = useState('');
   const [generatedNumber, setGeneratedNumber] = useState('');
+  const [plannerId, setPlannerId] = useState('');
+
+  // Fetch profiles for planner selection
+  const { data: allProfiles } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('*').order('name');
+      return data || [];
+    },
+  });
 
   // Preselect
   useEffect(() => {
@@ -64,6 +76,7 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
       }
       setOrderTypeId('');
       setDescription('');
+      setPlannerId('');
       setShowNewClient(false);
       setShowNewProp(false);
     }
@@ -144,7 +157,9 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
         client_id: selectedClient!.id,
         property_id: propertyId || null,
         order_type_id: orderTypeId,
-      });
+        contact_person_id: selectedClient!.contact_id || null,
+        planner_id: plannerId || null,
+      } as any);
       // Create default appointments
       if (created?.id) {
         await createDefaultAppointments(created.id, orderTypeId);
@@ -288,6 +303,17 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
               <div><Label>Auftragstitel</Label><Input value={generatedTitle} readOnly className="bg-muted" /></div>
             )}
             <div><Label>Beschreibung</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" /></div>
+            <div>
+              <Label>Auftragsplaner</Label>
+              <Select value={plannerId} onValueChange={setPlannerId}>
+                <SelectTrigger><SelectValue placeholder="Planer wählen (optional)…" /></SelectTrigger>
+                <SelectContent>
+                  {(allProfiles || []).map((p: any) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>{p.name || p.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={handleCreateJob} disabled={createJob.isPending} className="w-full">
               {createJob.isPending ? 'Erstelle…' : 'Auftrag erstellen'}
             </Button>
