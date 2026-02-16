@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy } from 'lucide-react';
+import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AdminLayoutProps {
@@ -18,9 +18,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isOffice = hasRole('office') && !hasRole('admin') && !hasRole('teamleiter');
   const perfEnabled = !isOffice && (settings?.module_performance_enabled ?? true);
   const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
+  const montageEnabled = !isOffice && (settings?.module_klyma_os_enabled ?? true);
   const isSettings = location.pathname.startsWith('/admin/settings');
   const isPerformance = location.pathname.startsWith('/admin/performance');
-  const isDashboard = !isSettings && !isPerformance;
+  const isMontage = location.pathname.startsWith('/admin/montage');
+  const isDashboard = !isSettings && !isPerformance && !isMontage;
 
   const handleLogout = async () => {
     await signOut();
@@ -34,6 +36,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           <div className="flex items-center gap-8">
             <h1 className="text-lg font-bold text-foreground tracking-tight">KLYMA</h1>
             <nav className="flex items-center gap-1">
+              {montageEnabled && (
+                <Button
+                  variant={isMontage ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => navigate('/admin/montage')}
+                  className="gap-2"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  Montage
+                </Button>
+              )}
               {lagerEnabled && (
                 <Button
                   variant={isDashboard ? 'default' : 'ghost'}

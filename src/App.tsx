@@ -17,6 +17,10 @@ const MonteurInventoryCheck = lazy(() => import("./pages/MonteurInventoryCheck")
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminPerformance = lazy(() => import("./pages/AdminPerformance"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminMontage = lazy(() => import("./pages/AdminMontage"));
+const AdminJobDetail = lazy(() => import("./pages/AdminJobDetail"));
+const MonteurMontage = lazy(() => import("./pages/MonteurMontage"));
+const MonteurJobDetail = lazy(() => import("./pages/MonteurJobDetail"));
 const MonteurPerformance = lazy(() => import("./pages/MonteurPerformance"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -62,6 +66,16 @@ const App = () => (
                       <AdminDashboard />
                     </ProtectedRoute>
                   } />
+                  <Route path="/admin/montage" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminMontage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/montage/job/:id" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminJobDetail />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/admin/performance" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminPerformance />
@@ -75,6 +89,16 @@ const App = () => (
                   <Route path="/performance" element={
                     <ProtectedRoute requiredRole="monteur">
                       <MonteurPerformance />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/montage" element={
+                    <ProtectedRoute requiredRole="monteur">
+                      <MonteurMontage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/montage/job/:id" element={
+                    <ProtectedRoute requiredRole="monteur">
+                      <MonteurJobDetail />
                     </ProtectedRoute>
                   } />
                   <Route path="/downloads" element={
