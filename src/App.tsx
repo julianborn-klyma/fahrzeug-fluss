@@ -21,6 +21,7 @@ const AdminMontage = lazy(() => import("./pages/AdminMontage"));
 const AdminMontageKunden = lazy(() => import("./pages/AdminMontageKunden"));
 const AdminMontageKundenDetail = lazy(() => import("./pages/AdminMontageKundenDetail"));
 const AdminMontageAuftraege = lazy(() => import("./pages/AdminMontageAuftraege"));
+const AdminMontageTermine = lazy(() => import("./pages/AdminMontageTermine"));
 const AdminJobDetail = lazy(() => import("./pages/AdminJobDetail"));
 const MonteurMontage = lazy(() => import("./pages/MonteurMontage"));
 const MonteurJobDetail = lazy(() => import("./pages/MonteurJobDetail"));
@@ -78,7 +79,7 @@ const App = () => (
                     <Route path="kunden" element={<AdminMontageKunden />} />
                     <Route path="kunden/:id" element={<AdminMontageKundenDetail />} />
                     <Route path="planung" element={<div className="p-8 text-center text-muted-foreground">Planung – Kommt bald</div>} />
-                    <Route path="termine" element={<div className="p-8 text-center text-muted-foreground">Termine – Kommt bald</div>} />
+                    <Route path="termine" element={<AdminMontageTermine />} />
                     <Route path="job/:id" element={<AdminJobDetail />} />
                   </Route>
                   <Route path="/admin/performance" element={
