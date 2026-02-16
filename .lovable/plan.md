@@ -1,115 +1,142 @@
 
-
-# Montage-Modul Umstrukturierung: Unterpunkte + Kunden-Workflow
+# Auftragsarten, Terminarten, Felder und Dokumente
 
 ## Uebersicht
 
-Das Montage-Modul wird von einer einzelnen Auftragslistenseite zu einem vollstaendigen Bereich mit Sub-Navigation umgebaut. Es entstehen vier Unterpunkte: Planung, Kunden, Auftraege und Termine. Der Kern dieser Aenderung ist ein neuer Kunden-/Immobilien-Workflow, bei dem Auftraege immer an einen Kunden und eine Immobilie (Einsatzort) gebunden sind.
+Dieses Feature erweitert das System um ein vollstaendiges Baukastensystem fuer Auftragsarten (Order Types) und deren zugehoerige Terminarten (Appointment Types). Jede Terminart bekommt konfigurierbare Felder (Text, Dropdown, Datum, etc.) und erforderliche Dokumente. Beim Erstellen eines Auftrags werden die Standard-Terminarten automatisch angelegt. In der Auftragsdetailansicht wird sichtbar, welche Dokumente noch fehlen.
 
-## Aenderungen im Detail
+## Datenbank-Aenderungen
 
-### 1. Sub-Navigation im Montage-Bereich
+### Bestehende Tabellen erweitern
 
-Die bestehende AdminLayout-Navigation bleibt. Unter "Montage" entsteht eine sekundaere Tab-Leiste mit den vier Unterpunkten. Die Routing-Struktur wird erweitert:
+**appointment_types** -- Neue Spalten:
+- `description` (text, default '') -- Beschreibungstext
+- `is_active` (boolean, default true) -- Aktiv/Inaktiv-Schalter
 
-- `/admin/montage` -- Redirect auf `/admin/montage/auftraege`
-- `/admin/montage/planung` -- Platzhalter ("Kommt bald")
-- `/admin/montage/kunden` -- Kundenliste
-- `/admin/montage/kunden/:id` -- Kundendetail mit Immobilien
-- `/admin/montage/auftraege` -- Auftragsliste (bisherige AdminMontage)
-- `/admin/montage/termine` -- Platzhalter ("Kommt bald")
-- `/admin/montage/job/:id` -- Bleibt wie bisher
+**order_types** -- Aufraumen: Bestehende Eintraege aktualisieren (WP, PV hinzufuegen, bzw. umbenennen). Neue hinzufuegen: "Photovoltaik", "Installation WP", "Installation PV".
 
-### 2. Neue Seiten und Komponenten
+### Neue Tabellen
 
-**AdminMontage.tsx** -- Wird zur Layout-Seite mit Tab-Navigation (Planung, Kunden, Auftraege, Termine) und rendert die jeweilige Unterseite.
+**appointment_type_fields** -- Konfigurierbare Felder pro Terminart:
+- `id` (uuid, PK)
+- `appointment_type_id` (uuid, FK -> appointment_types)
+- `label` (text) -- Feldbezeichnung
+- `field_type` (text) -- 'text', 'textarea', 'dropdown', 'boolean', 'date', 'photo'
+- `placeholder` (text, default '')
+- `options` (jsonb, default '[]') -- Dropdown-Optionen
+- `is_required` (boolean, default false)
+- `width` (text, default 'half') -- 'half' oder 'full'
+- `display_order` (integer, default 0)
+- `created_at` (timestamptz)
 
-**Kundenliste (AdminMontageKunden.tsx)**:
-- Suchbare Liste aller Kunden aus der `clients`-Tabelle
-- Button "Neuer Kunde" oeffnet ein Dialogformular
-- Klick auf Kunde navigiert zur Kundendetailseite
+**appointment_type_documents** -- Welche Dokumenttypen eine Terminart erfordert:
+- `id` (uuid, PK)
+- `appointment_type_id` (uuid, FK -> appointment_types)
+- `document_type_id` (uuid, FK -> document_types)
+- `created_at` (timestamptz)
 
-**Kundendetail (AdminMontageKundenDetail.tsx)**:
-- Stammdaten des Kunden (Name/Firma, Rechnungsadresse, Email, Telefon)
-- Liste der Immobilien (Einsatzorte) des Kunden
-- Button "Neue Immobilie" mit Option "Rechnungsadresse = Einsatzort" oder separate Adresse
-- Unter jeder Immobilie: Liste der zugehoerigen Auftraege mit "Neuer Auftrag"-Button
+**job_appointments** -- Konkrete Termine eines Auftrags (basierend auf Terminart):
+- `id` (uuid, PK)
+- `job_id` (uuid, FK -> jobs)
+- `appointment_type_id` (uuid, FK -> appointment_types)
+- `start_date` (timestamptz, nullable)
+- `end_date` (timestamptz, nullable)
+- `status` (text, default 'offen') -- offen, geplant, abgeschlossen
+- `notes` (text, default '')
+- `field_values` (jsonb, default '{}') -- Gespeicherte Feldwerte
+- `created_at` (timestamptz)
 
-**Auftragsliste (AdminMontageAuftraege.tsx)**:
-- Bisherige AdminMontage-Auftragslistenlogik hierher verschoben
-- "Neuer Auftrag" startet jetzt einen mehrstufigen Wizard
+Alle neuen Tabellen erhalten RLS-Policies analog zu den bestehenden (Admin/Office/Teamleiter: ALL, Monteur: SELECT).
 
-**Neuer Auftrag Wizard (CreateJobWizard.tsx)**:
-Ersetzt den bisherigen CreateJobDialog. Drei Schritte:
-1. Kunde waehlen oder neu anlegen
-2. Immobilie (Einsatzort) waehlen: "Rechnungsadresse verwenden" oder neue Immobilie anlegen
-3. Auftragsdetails: Auftragsart (WP/PV/INST), Kundenname wird automatisch befuellt, Auftragsnummer und -titel werden generiert
+### Seed-Daten
 
-### 3. Datenbank-Erweiterungen
+Einfuegen der Standard-Auftragsarten und zugehoerige Terminarten:
 
-Die Tabellen `clients`, `contacts`, `properties` existieren bereits. Folgende Anpassungen:
+- **Waermepumpe (WP)**: SHK Montage (SHK, Intern), Elektro-WP (Elektro, Intern), Fundament (Fundament, Extern)
+- **Photovoltaik (PV)**: Dachmontage (Dach, Extern), Elektroarbeiten Keller (Elektro, Intern)
+- **Installation WP**: Gleiche Terminarten wie WP
+- **Installation PV**: Gleiche Terminarten wie PV
 
-- In der `contacts`-Tabelle fehlt `phone` nicht (ist vorhanden).
-- `clients` hat bereits `billing_street`, `billing_city`, `billing_postal_code`.
-- `properties` hat `street_address`, `city`, `postal_code` und `client_id`.
-- `jobs` hat `client_id` und `property_id`.
+Standard-Dokumenttypen einfuegen: Installationsanleitung, Hydraulischer Abgleich, Hydraulikplan, Anschlussplan, Fundamentplan, Bilder, Sonstiges, Reglereinstellungen, Fotos.
 
-Keine neuen Tabellen noetig -- die bestehende Struktur deckt den Workflow ab.
+## Frontend-Aenderungen
 
-### 4. Neuer Kunden-Hook (useClients.ts)
+### 1. Settings: Neuer Tab "Projektarten" (AdminSettings.tsx)
 
-Ein neuer Hook fuer CRUD-Operationen auf `clients` mit zugehoerigen `contacts`:
-- `useClients()` -- Liste aller Kunden mit Kontaktdaten
-- `createClient` -- Legt Kontakt + Kunde an
-- `updateClient` -- Aktualisiert Stammdaten
+Neuer Tab in den Einstellungen mit einer Seite analog zum Screenshot:
 
-### 5. Neuer Properties-Hook (useProperties.ts)
+**SettingsOrderTypes.tsx** -- Neue Komponente:
+- Liste aller Auftragsarten als aufklappbare Karten (Accordion)
+- Jede Karte zeigt: Name, System-Badge, Anzahl Terminarten
+- "Neue Projektart"-Button zum Anlegen
+- "Bearbeiten"-Button pro Auftragsart
+- Unter jeder Auftragsart: Liste der Terminarten mit Trade-Badge, Intern/Extern-Badge, Edit/Delete-Buttons
+- "Terminart hinzufuegen"-Button
 
-- `useProperties(clientId)` -- Alle Immobilien eines Kunden
-- `createProperty` -- Neue Immobilie anlegen (mit Option Rechnungsadresse zu uebernehmen)
+**EditAppointmentTypeDialog.tsx** -- Dialog mit 3 Tabs:
+- **Einstellungen**: Name, Beschreibung, Gewerk (Trade-Dropdown), Intern/Extern-Toggle, Aktiv-Toggle
+- **Felder**: Liste konfigurierbarer Felder mit Drag-and-Drop-Reihenfolge. "Neues Feld"-Button oeffnet Unter-Dialog mit: Label, Feldtyp (Text/Textarea/Dropdown/Ja-Nein/Datum/Foto-Upload), Platzhaltertext, Pflichtfeld-Toggle, Breite (Halbe/Volle Breite). Bei Dropdown: Optionen konfigurieren.
+- **Dokumente**: Dropdown zum Auswaehlen eines Dokumenttyps + Hinzufuegen-Button. Liste der zugewiesenen Dokumenttypen mit Loeschen-Moeglichkeit.
+
+### 2. Auftrags-Erstellung: Standard-Termine anlegen (CreateJobWizard.tsx)
+
+Wenn ein Auftrag erstellt wird:
+- Die Auftragsart (WP/PV/INST-WP/INST-PV) wird mit `order_type_id` verknuepft
+- Alle aktiven Terminarten dieser Auftragsart werden automatisch als `job_appointments` angelegt (Status: "offen", ohne Datum)
+
+### 3. Auftragsdetail: Termine und Dokument-Tracking (AdminJobDetail.tsx)
+
+**Termine-Tab erweitert:**
+- Zeigt `job_appointments` statt der bisherigen `trade_appointments`
+- Jeder Termin zeigt: Terminart-Name, Trade-Badge, Status, Datum (falls geplant)
+- "Termin hinzufuegen"-Button: Oeffnet Dialog mit Terminart-Auswahl (alle verfuegbaren Terminarten)
+- Klick auf Termin zeigt die konfigurierten Felder zum Ausfuellen
+
+**Dokumente-Tab erweitert:**
+- Zeigt pro Terminart welche Dokumente erforderlich sind (aus `appointment_type_documents`)
+- Gruen markiert: Dokument bereits hochgeladen
+- Rot/Grau markiert: Dokument fehlt noch
+- Upload-Moeglichkeit direkt in der Uebersicht
+
+### 4. Neue Hooks
+
+- `useOrderTypes.ts` -- CRUD fuer order_types mit appointment_types
+- `useAppointmentTypes.ts` -- CRUD fuer appointment_types inkl. fields und documents
+- `useJobAppointments.ts` -- CRUD fuer job_appointments
 
 ## Technische Details
 
 ### Neue Dateien
-- `src/pages/AdminMontageKunden.tsx` -- Kundenliste
-- `src/pages/AdminMontageKundenDetail.tsx` -- Kundendetail + Immobilien
-- `src/pages/AdminMontageAuftraege.tsx` -- Auftragsliste (aus AdminMontage extrahiert)
-- `src/components/montage/CreateClientDialog.tsx` -- Neuer Kunde Formular
-- `src/components/montage/CreatePropertyDialog.tsx` -- Neue Immobilie Formular
-- `src/components/montage/CreateJobWizard.tsx` -- Mehrstufiger Auftrags-Wizard
-- `src/components/montage/MontageSubNav.tsx` -- Tab-Navigation fuer Montage-Unterseiten
-- `src/hooks/useClients.ts` -- Kunden-CRUD
-- `src/hooks/useProperties.ts` -- Immobilien-CRUD
+- `src/components/settings/SettingsOrderTypes.tsx`
+- `src/components/settings/EditAppointmentTypeDialog.tsx`
+- `src/components/settings/EditOrderTypeDialog.tsx`
+- `src/hooks/useOrderTypes.ts`
+- `src/hooks/useAppointmentTypes.ts`
+- `src/hooks/useJobAppointments.ts`
 
 ### Geaenderte Dateien
-- `src/App.tsx` -- Neue Routen registrieren
-- `src/pages/AdminMontage.tsx` -- Umgebaut zur Layout-Seite mit Sub-Navigation
-- `src/components/montage/CreateJobDialog.tsx` -- Entfernt, ersetzt durch Wizard
+- `src/pages/AdminSettings.tsx` -- Neuer Tab "Projektarten"
+- `src/pages/AdminJobDetail.tsx` -- Erweiterte Termine- und Dokumenten-Ansicht
+- `src/components/montage/CreateJobWizard.tsx` -- order_type_id setzen + auto-Termine
+- `src/types/montage.ts` -- Neue Interfaces fuer Fields, JobAppointment, etc.
 
-### Auftrags-Erstellungsablauf
+### Datenfluss bei Auftragserstellung
 
 ```text
-[Neuer Auftrag]
+Wizard Schritt 3: Auftragsart waehlen (WP/PV/...)
     |
     v
-Schritt 1: Kunde
-    +-- Bestehenden Kunden aus Liste waehlen
-    +-- ODER: Neuen Kunden anlegen (Name, Adresse, Email, Telefon)
+order_type_id wird am Job gespeichert
     |
     v
-Schritt 2: Einsatzort (Immobilie)
-    +-- "Rechnungsadresse = Einsatzort" (erstellt Property mit gleicher Adresse)
-    +-- ODER: Neue Adresse eingeben
-    +-- ODER: Bestehende Immobilie des Kunden waehlen
+Alle aktiven appointment_types dieser order_type_id werden geladen
     |
     v
-Schritt 3: Auftragsdetails
-    +-- Auftragsart waehlen (WP / PV / INST)
-    +-- Auftragsnummer wird automatisch generiert (z.B. WP-2026-001)
-    +-- Titel wird automatisch gebildet (z.B. Mueller_WP)
-    +-- Optionale Beschreibung
+Fuer jeden appointment_type wird ein job_appointment erstellt
+    (status: 'offen', keine Daten, leere field_values)
     |
     v
-[Auftrag erstellt mit client_id + property_id]
+Auftrag oeffnen -> Termine-Tab zeigt alle job_appointments
+    +-- Jeder Termin kann geplant und Felder ausgefuellt werden
+    +-- Dokumente-Tab zeigt Soll/Ist der erforderlichen Dokumente
 ```
-
