@@ -59,11 +59,96 @@ export type Database = {
           },
         ]
       }
+      appointment_type_documents: {
+        Row: {
+          appointment_type_id: string
+          created_at: string
+          document_type_id: string
+          id: string
+        }
+        Insert: {
+          appointment_type_id: string
+          created_at?: string
+          document_type_id: string
+          id?: string
+        }
+        Update: {
+          appointment_type_id?: string
+          created_at?: string
+          document_type_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_type_documents_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_type_documents_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_type_fields: {
+        Row: {
+          appointment_type_id: string
+          created_at: string
+          display_order: number
+          field_type: string
+          id: string
+          is_required: boolean
+          label: string
+          options: Json
+          placeholder: string
+          width: string
+        }
+        Insert: {
+          appointment_type_id: string
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          label: string
+          options?: Json
+          placeholder?: string
+          width?: string
+        }
+        Update: {
+          appointment_type_id?: string
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          label?: string
+          options?: Json
+          placeholder?: string
+          width?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_type_fields_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_types: {
         Row: {
           created_at: string
+          description: string
           display_order: number
           id: string
+          is_active: boolean
           is_internal: boolean
           name: string
           order_type_id: string
@@ -72,8 +157,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string
           display_order?: number
           id?: string
+          is_active?: boolean
           is_internal?: boolean
           name: string
           order_type_id: string
@@ -82,8 +169,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string
           display_order?: number
           id?: string
+          is_active?: boolean
           is_internal?: boolean
           name?: string
           order_type_id?: string
@@ -388,6 +477,57 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_appointments: {
+        Row: {
+          appointment_type_id: string
+          created_at: string
+          end_date: string | null
+          field_values: Json
+          id: string
+          job_id: string
+          notes: string
+          start_date: string | null
+          status: string
+        }
+        Insert: {
+          appointment_type_id: string
+          created_at?: string
+          end_date?: string | null
+          field_values?: Json
+          id?: string
+          job_id: string
+          notes?: string
+          start_date?: string | null
+          status?: string
+        }
+        Update: {
+          appointment_type_id?: string
+          created_at?: string
+          end_date?: string | null
+          field_values?: Json
+          id?: string
+          job_id?: string
+          notes?: string
+          start_date?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_appointments_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_appointments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]

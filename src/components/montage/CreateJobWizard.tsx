@@ -10,17 +10,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useClients, type CreateClientInput } from '@/hooks/useClients';
 import { useProperties } from '@/hooks/useProperties';
 import { useJobs } from '@/hooks/useJobs';
+import { useOrderTypes } from '@/hooks/useOrderTypes';
+import { useJobAppointments } from '@/hooks/useJobAppointments';
 import type { Client, Property } from '@/types/montage';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
-
-const ORDER_TYPES = [
-  { value: 'WP', label: 'Wärmepumpe' },
-  { value: 'PV', label: 'Photovoltaik' },
-  { value: 'INST', label: 'Installation' },
-] as const;
-
-type OrderTypePrefix = typeof ORDER_TYPES[number]['value'];
 
 interface Props {
   open: boolean;
@@ -32,6 +26,8 @@ interface Props {
 const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClient, preselectedProperty }) => {
   const { clients, createClient } = useClients();
   const { jobs, createJob } = useJobs();
+  const { orderTypes } = useOrderTypes();
+  const { createDefaultAppointments } = useJobAppointments();
   const [step, setStep] = useState(1);
 
   // Step 1: Client
@@ -50,7 +46,7 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
   const [showNewProp, setShowNewProp] = useState(false);
 
   // Step 3: Job details
-  const [orderType, setOrderType] = useState<OrderTypePrefix | ''>('');
+  const [orderTypeId, setOrderTypeId] = useState('');
   const [description, setDescription] = useState('');
   const [generatedNumber, setGeneratedNumber] = useState('');
 
@@ -66,28 +62,36 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
         setSelectedClient(null);
         setSelectedProperty(null);
       }
-      setOrderType('');
+      setOrderTypeId('');
       setDescription('');
       setShowNewClient(false);
       setShowNewProp(false);
     }
   }, [open, preselectedClient, preselectedProperty]);
 
+  // Find selected order type
+  const selectedOrderType = orderTypes.find(ot => ot.id === orderTypeId);
+  const orderTypeShort = selectedOrderType?.name?.includes('Photovoltaik') ? 'PV'
+    : selectedOrderType?.name?.includes('Installation PV') ? 'INST-PV'
+    : selectedOrderType?.name?.includes('Installation WP') ? 'INST-WP'
+    : selectedOrderType?.name?.includes('Wärmepumpe') ? 'WP'
+    : selectedOrderType?.name?.substring(0, 4).toUpperCase() || '';
+
   // Auto-generate job number
   useEffect(() => {
-    if (!orderType) { setGeneratedNumber(''); return; }
+    if (!orderTypeShort) { setGeneratedNumber(''); return; }
     const year = new Date().getFullYear();
-    const prefix = `${orderType}-${year}-`;
+    const prefix = `${orderTypeShort}-${year}-`;
     const existing = jobs.map((j) => j.job_number).filter((n) => n.startsWith(prefix))
       .map((n) => { const num = parseInt(n.replace(prefix, ''), 10); return isNaN(num) ? 0 : num; });
     const next = (existing.length > 0 ? Math.max(...existing) : 0) + 1;
     setGeneratedNumber(`${prefix}${String(next).padStart(3, '0')}`);
-  }, [orderType, jobs]);
+  }, [orderTypeShort, jobs]);
 
   const clientName = selectedClient?.contact
     ? `${selectedClient.contact.last_name}`
     : selectedClient?.company_name || '';
-  const generatedTitle = orderType && clientName ? `${clientName}_${orderType}` : '';
+  const generatedTitle = orderTypeShort && clientName ? `${clientName}_${orderTypeShort}` : '';
 
   const filteredClients = clients.filter((c) => {
     const s = clientSearch.toLowerCase();
@@ -108,7 +112,7 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
   };
 
   const handleCreateJob = async () => {
-    if (!orderType) { toast.error('Bitte Auftragsart wählen.'); return; }
+    if (!orderTypeId) { toast.error('Bitte Auftragsart wählen.'); return; }
 
     let propertyId = selectedProperty?.id;
 
@@ -133,13 +137,18 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
     }
 
     try {
-      await createJob.mutateAsync({
+      const created = await createJob.mutateAsync({
         title: generatedTitle,
         job_number: generatedNumber,
         description: description.trim(),
         client_id: selectedClient!.id,
         property_id: propertyId || null,
+        order_type_id: orderTypeId,
       });
+      // Create default appointments
+      if (created?.id) {
+        await createDefaultAppointments(created.id, orderTypeId);
+      }
       toast.success('Auftrag erstellt.');
       onOpenChange(false);
     } catch { toast.error('Fehler beim Erstellen.'); }
@@ -263,11 +272,11 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
             </p>
             <div>
               <Label>Auftragsart</Label>
-              <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderTypePrefix)}>
+              <Select value={orderTypeId} onValueChange={setOrderTypeId}>
                 <SelectTrigger><SelectValue placeholder="Art wählen…" /></SelectTrigger>
                 <SelectContent>
-                  {ORDER_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  {orderTypes.filter(ot => ot.is_active).map((ot) => (
+                    <SelectItem key={ot.id} value={ot.id}>{ot.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
