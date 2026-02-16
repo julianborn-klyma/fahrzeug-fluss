@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Settings2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings2, FolderKanban, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import EditAppointmentTypeDialog from './EditAppointmentTypeDialog';
@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
 const SettingsOrderTypes = () => {
+  const [subTab, setSubTab] = useState<'projektarten' | 'checklisten'>('projektarten');
   const { orderTypes, loading, createOrderType, deleteOrderType } = useOrderTypes();
   const queryClient = useQueryClient();
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -62,6 +63,34 @@ const SettingsOrderTypes = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1 border-b mb-4">
+        {[
+          { key: 'projektarten' as const, label: 'Projektarten & Terminarten', icon: FolderKanban },
+          { key: 'checklisten' as const, label: 'Checklisten', icon: ClipboardList },
+        ].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setSubTab(key)}
+            className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              subTab === key
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'checklisten' && (
+        <div className="text-muted-foreground text-sm py-8 text-center">
+          Checklisten-Verwaltung kommt bald.
+        </div>
+      )}
+
+      {subTab === 'projektarten' && (
+      <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Projektarten & Terminarten</h3>
         <Button onClick={() => setShowNewDialog(true)} className="gap-2"><Plus className="h-4 w-4" /> Neue Projektart</Button>
@@ -122,6 +151,8 @@ const SettingsOrderTypes = () => {
           </AccordionItem>
         ))}
       </Accordion>
+      </div>
+      )}
 
       {/* New Order Type Dialog */}
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
