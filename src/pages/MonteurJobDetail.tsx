@@ -1,15 +1,17 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useAssignedJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
+import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
 import { toast } from 'sonner';
 
@@ -20,6 +22,8 @@ const MonteurJobDetail = () => {
   const { data: jobs, isLoading } = useAssignedJobs(user?.id);
   const { documents, getDownloadUrl } = useJobDocuments(id);
   const { checklists, updateStep } = useJobChecklists(id);
+  const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const job = jobs?.find((j) => j.id === id);
 
@@ -126,6 +130,15 @@ const MonteurJobDetail = () => {
                             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="text-sm truncate">{d.file_name}</span>
                           </div>
+                          <Button variant="ghost" size="icon" onClick={async () => {
+                            setPreviewLoading(true);
+                            setPreviewDoc({ fileName: d.file_name, url: null });
+                            const url = await getDownloadUrl(d.file_path);
+                            setPreviewDoc({ fileName: d.file_name, url: url || null });
+                            setPreviewLoading(false);
+                          }}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDownload(d.file_path, d.file_name)}>
                             <Download className="h-4 w-4" />
                           </Button>
@@ -172,6 +185,13 @@ const MonteurJobDetail = () => {
         )}
       </div>
 
+      <DocumentPreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(o) => { if (!o) setPreviewDoc(null); }}
+        fileName={previewDoc?.fileName || ''}
+        fileUrl={previewDoc?.url || null}
+        loading={previewLoading}
+      />
       <MonteurBottomNav active="montage" />
     </div>
   );
