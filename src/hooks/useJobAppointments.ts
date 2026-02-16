@@ -14,8 +14,24 @@ export const useJobAppointments = (jobId?: string) => {
         .eq('job_id', jobId!)
         .order('created_at');
       if (error) throw error;
+
+      // Fetch assignments for all appointments
+      const ids = (data || []).map((d: any) => d.id);
+      let assignmentsMap: Record<string, any[]> = {};
+      if (ids.length > 0) {
+        const { data: assignments } = await supabase
+          .from('appointment_assignments')
+          .select('*')
+          .in('appointment_id', ids);
+        for (const a of (assignments || [])) {
+          if (!assignmentsMap[a.appointment_id]) assignmentsMap[a.appointment_id] = [];
+          assignmentsMap[a.appointment_id].push(a);
+        }
+      }
+
       return (data || []).map((d: any) => ({
         ...d,
+        assignments: assignmentsMap[d.id] || [],
         appointment_type: d.appointment_types ? {
           ...d.appointment_types,
           fields: (d.appointment_types.appointment_type_fields || []).sort((a: any, b: any) => a.display_order - b.display_order),
