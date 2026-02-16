@@ -53,7 +53,7 @@ export const BonusSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       .from('bonus_settings')
       .select('*')
       .limit(1)
-      .single();
+      .maybeSingle();
     if (data) {
       setSettings({
         id: data.id,
