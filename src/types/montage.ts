@@ -195,3 +195,37 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   durchgefuehrt: 'Durchgeführt',
   abgerechnet: 'Abgerechnet',
 };
+
+export interface AppointmentTypeField {
+  id: string;
+  appointment_type_id: string;
+  label: string;
+  field_type: string;
+  placeholder: string;
+  options: any[];
+  is_required: boolean;
+  width: string;
+  display_order: number;
+  created_at: string;
+}
+
+export interface AppointmentTypeDocument {
+  id: string;
+  appointment_type_id: string;
+  document_type_id: string;
+  created_at: string;
+  document_type?: DocumentType;
+}
+
+export interface JobAppointment {
+  id: string;
+  job_id: string;
+  appointment_type_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+  notes: string;
+  field_values: Record<string, any>;
+  created_at: string;
+  appointment_type?: AppointmentType & { fields?: AppointmentTypeField[]; required_documents?: AppointmentTypeDocument[] };
+}

@@ -1,6 +1,6 @@
 import AdminLayout from '@/components/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Users, Truck, Tag, Trophy, ToggleRight, Warehouse, UsersRound } from 'lucide-react';
+import { Package, Users, Truck, Tag, Trophy, ToggleRight, Warehouse, UsersRound, FolderKanban } from 'lucide-react';
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import SettingsInventory from '@/components/settings/SettingsInventory';
 import SettingsUsers from '@/components/settings/SettingsUsers';
@@ -9,6 +9,7 @@ import SettingsVehicles from '@/components/settings/SettingsVehicles';
 import SettingsVehicleTypes from '@/components/settings/SettingsVehicleTypes';
 import SettingsBonusParams from '@/components/settings/SettingsBonusParams';
 import SettingsModules from '@/components/settings/SettingsModules';
+import SettingsOrderTypes from '@/components/settings/SettingsOrderTypes';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -36,6 +37,12 @@ const AdminSettings = () => {
               <Users className="h-4 w-4" />
               Benutzer
             </TabsTrigger>
+            {!isOffice && (
+              <TabsTrigger value="projektarten" className="gap-2">
+                <FolderKanban className="h-4 w-4" />
+                Projektarten
+              </TabsTrigger>
+            )}
             {lagerEnabled && (
               <TabsTrigger value="fahrzeuglager" className="gap-2">
                 <Warehouse className="h-4 w-4" />
@@ -80,6 +87,11 @@ const AdminSettings = () => {
               {userSubTab === 'teams' && <SettingsTeams />}
             </div>
           </TabsContent>
+          {!isOffice && (
+            <TabsContent value="projektarten">
+              <SettingsOrderTypes />
+            </TabsContent>
+          )}
           {lagerEnabled && (
             <TabsContent value="fahrzeuglager">
               <div className="space-y-4">
