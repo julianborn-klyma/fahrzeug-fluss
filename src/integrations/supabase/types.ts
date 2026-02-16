@@ -243,32 +243,48 @@ export type Database = {
       checklist_template_steps: {
         Row: {
           created_at: string
+          description: string
           id: string
           is_required: boolean
+          options: Json
           order_index: number
+          parent_step_id: string | null
           step_type: string
           template_id: string
           title: string
         }
         Insert: {
           created_at?: string
+          description?: string
           id?: string
           is_required?: boolean
+          options?: Json
           order_index?: number
+          parent_step_id?: string | null
           step_type?: string
           template_id: string
           title: string
         }
         Update: {
           created_at?: string
+          description?: string
           id?: string
           is_required?: boolean
+          options?: Json
           order_index?: number
+          parent_step_id?: string | null
           step_type?: string
           template_id?: string
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "checklist_template_steps_parent_step_id_fkey"
+            columns: ["parent_step_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_steps"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "checklist_template_steps_template_id_fkey"
             columns: ["template_id"]
@@ -280,27 +296,41 @@ export type Database = {
       }
       checklist_templates: {
         Row: {
+          appointment_type_id: string | null
           created_at: string
+          description: string
           id: string
           is_standard: boolean
           name: string
           trade: Database["public"]["Enums"]["trade_type"] | null
         }
         Insert: {
+          appointment_type_id?: string | null
           created_at?: string
+          description?: string
           id?: string
           is_standard?: boolean
           name: string
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
         Update: {
+          appointment_type_id?: string | null
           created_at?: string
+          description?: string
           id?: string
           is_standard?: boolean
           name?: string
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_contacts: {
         Row: {
