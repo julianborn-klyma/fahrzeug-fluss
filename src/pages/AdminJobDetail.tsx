@@ -3,7 +3,6 @@ import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
-import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { useJobAppointments } from '@/hooks/useJobAppointments';
 import { useOrderTypes } from '@/hooks/useOrderTypes';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
 import { Label } from '@/components/ui/label';
 import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
@@ -25,7 +24,6 @@ const AdminJobDetail = () => {
   const navigate = useNavigate();
   const { jobs, loading, updateJob } = useJobs();
   const { documents, uploadDocument, deleteDocument, getDownloadUrl } = useJobDocuments(id);
-  const { checklists } = useJobChecklists(id);
   const { appointments, createJobAppointment } = useJobAppointments(id);
   const { orderTypes } = useOrderTypes();
 
@@ -230,9 +228,6 @@ const AdminJobDetail = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="checklists" className="gap-2">
-            <CheckSquare className="h-4 w-4" /> Checklisten ({checklists.length})
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="appointments">
@@ -241,7 +236,7 @@ const AdminJobDetail = () => {
               <p className="text-sm text-muted-foreground py-4">Keine Termine angelegt.</p>
             ) : (
               appointments.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} />
+                <AppointmentCard key={a.id} appointment={a} jobId={id} />
               ))
             )}
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setShowAddAppointment(true)}>
@@ -341,29 +336,6 @@ const AdminJobDetail = () => {
           </Button>
         </TabsContent>
 
-        <TabsContent value="checklists">
-          {checklists.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Keine Checklisten vorhanden.</p>
-          ) : (
-            <div className="space-y-2">
-              {checklists.map((cl) => {
-                const total = cl.steps?.length || 0;
-                const done = cl.steps?.filter((s) => s.is_completed).length || 0;
-                return (
-                  <Card key={cl.id}>
-                    <CardContent className="p-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{cl.name}</span>
-                        <span className="text-xs text-muted-foreground">{done}/{total}</span>
-                      </div>
-                      {cl.trade && <Badge variant="outline" className="text-xs mt-1">{cl.trade}</Badge>}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
       {/* Add Appointment Dialog */}

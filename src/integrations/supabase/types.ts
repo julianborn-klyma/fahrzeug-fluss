@@ -616,6 +616,7 @@ export type Database = {
       }
       job_checklists: {
         Row: {
+          appointment_id: string | null
           completed_at: string | null
           completed_by: string | null
           created_at: string
@@ -627,6 +628,7 @@ export type Database = {
           trade: Database["public"]["Enums"]["trade_type"] | null
         }
         Insert: {
+          appointment_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -638,6 +640,7 @@ export type Database = {
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
         Update: {
+          appointment_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -649,6 +652,13 @@ export type Database = {
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "job_checklists_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "job_appointments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "job_checklists_job_id_fkey"
             columns: ["job_id"]

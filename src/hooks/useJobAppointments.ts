@@ -18,20 +18,38 @@ export const useJobAppointments = (jobId?: string) => {
       // Fetch assignments for all appointments
       const ids = (data || []).map((d: any) => d.id);
       let assignmentsMap: Record<string, any[]> = {};
+      let checklistsMap: Record<string, any[]> = {};
       if (ids.length > 0) {
-        const { data: assignments } = await supabase
-          .from('appointment_assignments')
-          .select('*')
-          .in('appointment_id', ids);
-        for (const a of (assignments || [])) {
+        const [assignRes, checkRes] = await Promise.all([
+          supabase.from('appointment_assignments').select('*').in('appointment_id', ids),
+          supabase.from('job_checklists').select('*, job_checklist_steps(*)').in('appointment_id', ids).order('created_at'),
+        ]);
+        for (const a of (assignRes.data || [])) {
           if (!assignmentsMap[a.appointment_id]) assignmentsMap[a.appointment_id] = [];
           assignmentsMap[a.appointment_id].push(a);
         }
+        for (const cl of (checkRes.data || [])) {
+          const apptId = (cl as any).appointment_id;
+          if (!checklistsMap[apptId]) checklistsMap[apptId] = [];
+          checklistsMap[apptId].push({
+            ...cl,
+            steps: ((cl as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
+          });
+        }
       }
+
+      // Also fetch checklists without appointment_id (legacy / unlinked)
+      const { data: unlinkedChecklists } = await supabase
+        .from('job_checklists')
+        .select('*, job_checklist_steps(*)')
+        .eq('job_id', jobId!)
+        .is('appointment_id', null)
+        .order('created_at');
 
       return (data || []).map((d: any) => ({
         ...d,
         assignments: assignmentsMap[d.id] || [],
+        checklists: checklistsMap[d.id] || [],
         appointment_type: d.appointment_types ? {
           ...d.appointment_types,
           fields: (d.appointment_types.appointment_type_fields || []).sort((a: any, b: any) => a.display_order - b.display_order),
