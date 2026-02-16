@@ -50,10 +50,10 @@ export interface OrderType {
 
 export interface AppointmentType {
   id: string;
-  order_type_id: string;
   name: string;
-  trade: TradeType | null;
+  description: string;
   is_internal: boolean;
+  is_active: boolean;
   requires_documents: boolean;
   display_order: number;
   created_at: string;

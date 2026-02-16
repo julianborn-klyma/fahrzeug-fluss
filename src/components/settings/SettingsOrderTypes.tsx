@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useOrderTypes } from '@/hooks/useOrderTypes';
+import { useAppointmentTypes } from '@/hooks/useAppointmentTypes';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,25 +8,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Settings2, FolderKanban, ClipboardList } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Pencil, Trash2, Settings2, FolderKanban, ClipboardList, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import EditAppointmentTypeDialog from './EditAppointmentTypeDialog';
 import SettingsChecklists from './SettingsChecklists';
 import EditOrderTypeDialog from './EditOrderTypeDialog';
-import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
 const SettingsOrderTypes = () => {
   const [subTab, setSubTab] = useState<'projektarten' | 'checklisten'>('projektarten');
-  const { orderTypes, loading, createOrderType, deleteOrderType } = useOrderTypes();
+  const { orderTypes, loading, createOrderType, deleteOrderType, addAppointmentTypeToOrder, removeAppointmentTypeFromOrder } = useOrderTypes();
+  const { appointmentTypes, createAppointmentType } = useAppointmentTypes();
   const queryClient = useQueryClient();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingOrderType, setEditingOrderType] = useState<any>(null);
   const [editingAppointmentType, setEditingAppointmentType] = useState<any>(null);
+  
+  // Add appointment type to order type
   const [addingToOrderType, setAddingToOrderType] = useState<string | null>(null);
+  const [addMode, setAddMode] = useState<'new' | 'existing'>('new');
   const [newAtName, setNewAtName] = useState('');
-
+  const [selectedAtId, setSelectedAtId] = useState('');
 
   const handleCreateOrderType = async () => {
     if (!newName.trim()) return;
@@ -37,24 +42,43 @@ const SettingsOrderTypes = () => {
     } catch { toast.error('Fehler.'); }
   };
 
-  const handleDeleteAppointmentType = async (id: string) => {
-    const { error } = await supabase.from('appointment_types').delete().eq('id', id);
-    if (error) { toast.error('Fehler beim Löschen.'); return; }
-    queryClient.invalidateQueries({ queryKey: ['order-types'] });
-    toast.success('Terminart gelöscht.');
+  const handleRemoveAppointmentType = async (junctionId: string) => {
+    try {
+      await removeAppointmentTypeFromOrder.mutateAsync(junctionId);
+      toast.success('Terminart entfernt.');
+    } catch { toast.error('Fehler beim Entfernen.'); }
   };
 
   const handleAddAppointmentType = async () => {
-    if (!addingToOrderType || !newAtName.trim()) return;
-    const { error } = await supabase.from('appointment_types').insert({
-      order_type_id: addingToOrderType,
-      name: newAtName.trim(),
-    } as any).select();
-    if (error) { toast.error('Fehler.'); return; }
-    queryClient.invalidateQueries({ queryKey: ['order-types'] });
-    setAddingToOrderType(null);
-    setNewAtName('');
-    toast.success('Terminart hinzugefügt.');
+    if (!addingToOrderType) return;
+    
+    try {
+      if (addMode === 'existing' && selectedAtId) {
+        await addAppointmentTypeToOrder.mutateAsync({
+          order_type_id: addingToOrderType,
+          appointment_type_id: selectedAtId,
+        });
+        toast.success('Terminart zugeordnet.');
+      } else if (addMode === 'new' && newAtName.trim()) {
+        const created = await createAppointmentType.mutateAsync({ name: newAtName.trim() });
+        await addAppointmentTypeToOrder.mutateAsync({
+          order_type_id: addingToOrderType,
+          appointment_type_id: created.id,
+        });
+        toast.success('Terminart erstellt und zugeordnet.');
+      } else {
+        return;
+      }
+      setAddingToOrderType(null);
+      setNewAtName('');
+      setSelectedAtId('');
+    } catch { toast.error('Fehler.'); }
+  };
+
+  // Get appointment type IDs already in this order type
+  const getExistingAtIds = (orderTypeId: string) => {
+    const ot = orderTypes.find(o => o.id === orderTypeId);
+    return (ot?.appointment_types || []).map((at: any) => at.id);
   };
 
   if (loading) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
@@ -116,7 +140,7 @@ const SettingsOrderTypes = () => {
               </div>
 
               {ot.appointment_types.map((at: any) => (
-                <Card key={at.id}>
+                <Card key={at.junction_id || at.id}>
                   <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{at.name}</span>
@@ -129,7 +153,9 @@ const SettingsOrderTypes = () => {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingAppointmentType(at)}>
                         <Settings2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteAppointmentType(at.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+                        if (at.junction_id) handleRemoveAppointmentType(at.junction_id);
+                      }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -137,7 +163,7 @@ const SettingsOrderTypes = () => {
                 </Card>
               ))}
 
-              <Button variant="outline" size="sm" className="gap-1 w-full" onClick={() => { setAddingToOrderType(ot.id); setNewAtName(''); }}>
+              <Button variant="outline" size="sm" className="gap-1 w-full" onClick={() => { setAddingToOrderType(ot.id); setNewAtName(''); setSelectedAtId(''); setAddMode('new'); }}>
                 <Plus className="h-3 w-3" /> Terminart hinzufügen
               </Button>
             </AccordionContent>
@@ -162,9 +188,40 @@ const SettingsOrderTypes = () => {
       <Dialog open={!!addingToOrderType} onOpenChange={() => setAddingToOrderType(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Terminart hinzufügen</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>Name</Label><Input value={newAtName} onChange={(e) => setNewAtName(e.target.value)} /></div>
-            <Button onClick={handleAddAppointmentType} className="w-full">Hinzufügen</Button>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button variant={addMode === 'new' ? 'default' : 'outline'} size="sm" onClick={() => setAddMode('new')}>
+                <Plus className="h-3 w-3 mr-1" /> Neue erstellen
+              </Button>
+              <Button variant={addMode === 'existing' ? 'default' : 'outline'} size="sm" onClick={() => setAddMode('existing')}>
+                <Link className="h-3 w-3 mr-1" /> Bestehende zuordnen
+              </Button>
+            </div>
+
+            {addMode === 'new' && (
+              <div><Label>Name</Label><Input value={newAtName} onChange={(e) => setNewAtName(e.target.value)} /></div>
+            )}
+
+            {addMode === 'existing' && (
+              <div>
+                <Label>Terminart auswählen</Label>
+                <Select value={selectedAtId} onValueChange={setSelectedAtId}>
+                  <SelectTrigger><SelectValue placeholder="Terminart wählen…" /></SelectTrigger>
+                  <SelectContent>
+                    {appointmentTypes
+                      .filter((at: any) => !getExistingAtIds(addingToOrderType!).includes(at.id))
+                      .map((at: any) => (
+                        <SelectItem key={at.id} value={at.id}>{at.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <Button onClick={handleAddAppointmentType} className="w-full">
+              {addMode === 'new' ? 'Erstellen & Zuordnen' : 'Zuordnen'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -151,7 +151,6 @@ export type Database = {
           is_active: boolean
           is_internal: boolean
           name: string
-          order_type_id: string
           requires_documents: boolean
           trade: Database["public"]["Enums"]["trade_type"] | null
         }
@@ -163,7 +162,6 @@ export type Database = {
           is_active?: boolean
           is_internal?: boolean
           name: string
-          order_type_id: string
           requires_documents?: boolean
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
@@ -175,19 +173,10 @@ export type Database = {
           is_active?: boolean
           is_internal?: boolean
           name?: string
-          order_type_id?: string
           requires_documents?: boolean
           trade?: Database["public"]["Enums"]["trade_type"] | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "appointment_types_order_type_id_fkey"
-            columns: ["order_type_id"]
-            isOneToOne: false
-            referencedRelation: "order_types"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       bonus_settings: {
         Row: {
@@ -878,6 +867,45 @@ export type Database = {
             columns: ["type_id"]
             isOneToOne: false
             referencedRelation: "vehicle_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_type_appointment_types: {
+        Row: {
+          appointment_type_id: string
+          created_at: string
+          display_order: number
+          id: string
+          order_type_id: string
+        }
+        Insert: {
+          appointment_type_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          order_type_id: string
+        }
+        Update: {
+          appointment_type_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          order_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_type_appointment_types_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_type_appointment_types_order_type_id_fkey"
+            columns: ["order_type_id"]
+            isOneToOne: false
+            referencedRelation: "order_types"
             referencedColumns: ["id"]
           },
         ]
