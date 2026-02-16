@@ -17,6 +17,9 @@ interface Props {
 const CreatePropertyDialog: React.FC<Props> = ({ open, onOpenChange, client }) => {
   const { createProperty } = useProperties(client.id);
   const [useBilling, setUseBilling] = useState(false);
+  const [useClientName, setUseClientName] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [street, setStreet] = useState('');
   const [plz, setPlz] = useState('');
   const [city, setCity] = useState('');
@@ -34,23 +37,36 @@ const CreatePropertyDialog: React.FC<Props> = ({ open, onOpenChange, client }) =
     }
   };
 
+  const handleUseClientNameChange = (checked: boolean) => {
+    setUseClientName(checked);
+    if (checked) {
+      setFirstName(client.contact?.first_name || '');
+      setLastName(client.contact?.last_name || '');
+    } else {
+      setFirstName('');
+      setLastName('');
+    }
+  };
+
   const handleCreate = async () => {
     if (!street.trim() || !city.trim()) {
       toast.error('Straße und Ort sind Pflichtfelder.');
       return;
     }
+    const nameLabel = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
+    const addressLabel = `${street.trim()}, ${plz.trim()} ${city.trim()}`;
     try {
       await createProperty.mutateAsync({
         client_id: client.id,
+        name: nameLabel ? `${nameLabel} – ${addressLabel}` : addressLabel,
         street_address: street.trim(),
         city: city.trim(),
         postal_code: plz.trim(),
       });
       toast.success('Immobilie erstellt.');
-      setStreet('');
-      setPlz('');
-      setCity('');
-      setUseBilling(false);
+      setStreet(''); setPlz(''); setCity('');
+      setFirstName(''); setLastName('');
+      setUseBilling(false); setUseClientName(false);
       onOpenChange(false);
     } catch {
       toast.error('Fehler beim Erstellen.');
@@ -64,6 +80,20 @@ const CreatePropertyDialog: React.FC<Props> = ({ open, onOpenChange, client }) =
           <DialogTitle>Neue Immobilie (Einsatzort)</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Checkbox id="useClientName" checked={useClientName} onCheckedChange={(c) => handleUseClientNameChange(!!c)} />
+            <Label htmlFor="useClientName">Name vom Kunden übernehmen</Label>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Vorname</Label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={useClientName} />
+            </div>
+            <div>
+              <Label>Nachname</Label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={useClientName} />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Checkbox id="useBilling" checked={useBilling} onCheckedChange={(c) => handleUseBillingChange(!!c)} />
             <Label htmlFor="useBilling">Rechnungsadresse = Einsatzort</Label>

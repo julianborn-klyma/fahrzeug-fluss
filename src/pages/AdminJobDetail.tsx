@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import AdminLayout from '@/components/AdminLayout';
+
 import { useJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
@@ -23,29 +23,25 @@ const AdminJobDetail = () => {
 
   if (loading) {
     return (
-      <AdminLayout>
-        <div className="flex justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      </AdminLayout>
+      <div className="flex justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
     );
   }
 
   if (!job) {
     return (
-      <AdminLayout>
-        <div className="p-4">
-          <Button variant="ghost" onClick={() => navigate('/admin/montage')} className="gap-2 mb-4">
-            <ArrowLeft className="h-4 w-4" /> Zurück
-          </Button>
-          <p className="text-center text-muted-foreground">Auftrag nicht gefunden.</p>
-        </div>
-      </AdminLayout>
+      <div className="p-4">
+        <Button variant="ghost" onClick={() => navigate('/admin/montage')} className="gap-2 mb-4">
+          <ArrowLeft className="h-4 w-4" /> Zurück
+        </Button>
+        <p className="text-center text-muted-foreground">Auftrag nicht gefunden.</p>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="p-4 space-y-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/admin/montage')} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Zurück
@@ -150,7 +146,7 @@ const AdminJobDetail = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </>
   );
 };
 
