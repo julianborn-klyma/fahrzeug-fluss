@@ -1,142 +1,75 @@
 
-# Auftragsarten, Terminarten, Felder und Dokumente
+# Checklisten-Verwaltung und Gewerk-Bereinigung
 
 ## Uebersicht
 
-Dieses Feature erweitert das System um ein vollstaendiges Baukastensystem fuer Auftragsarten (Order Types) und deren zugehoerige Terminarten (Appointment Types). Jede Terminart bekommt konfigurierbare Felder (Text, Dropdown, Datum, etc.) und erforderliche Dokumente. Beim Erstellen eines Auftrags werden die Standard-Terminarten automatisch angelegt. In der Auftragsdetailansicht wird sichtbar, welche Dokumente noch fehlen.
+Zwei Aenderungen: (1) Gewerk/Trade wird aus den Terminarten entfernt (UI und DB-Bezug), da es redundant ist. (2) Der "Checklisten"-Unterreiter in den Montage-Einstellungen wird mit einer vollstaendigen Checklisten-Verwaltung befuellt. Checklisten sind an Terminarten gebunden und haben Schritte mit Gruppierungen (aufklappbare Ebenen).
 
-## Datenbank-Aenderungen
+## 1. Gewerk aus Terminarten entfernen
 
-### Bestehende Tabellen erweitern
+- In `EditAppointmentTypeDialog.tsx`: Gewerk-Dropdown aus dem Einstellungen-Tab entfernen
+- In `SettingsOrderTypes.tsx`: Trade-Badge bei Terminarten entfernen, Trade-Feld beim Hinzufuegen einer Terminart entfernen
+- In `handleSaveSettings`: `trade` nicht mehr mitspeichern
 
-**appointment_types** -- Neue Spalten:
+## 2. Datenbank-Erweiterungen fuer Checklisten
+
+Bestehende Tabellen erweitern:
+
+**checklist_templates** -- Neue Spalten:
 - `description` (text, default '') -- Beschreibungstext
-- `is_active` (boolean, default true) -- Aktiv/Inaktiv-Schalter
+- `appointment_type_id` (uuid, nullable) -- Verknuepfung zur Terminart (statt trade)
 
-**order_types** -- Aufraumen: Bestehende Eintraege aktualisieren (WP, PV hinzufuegen, bzw. umbenennen). Neue hinzufuegen: "Photovoltaik", "Installation WP", "Installation PV".
+**checklist_template_steps** -- Neue Spalten:
+- `description` (text, default '') -- Beschreibung/Anweisung fuer den Schritt
+- `parent_step_id` (uuid, nullable, self-ref FK) -- Fuer Gruppierungen/verschachtelte Schritte
+- `options` (jsonb, default '[]') -- Antwortoptionen (z.B. Ja, Nein, Teilweise)
 
-### Neue Tabellen
+## 3. Checklisten-Verwaltung UI
 
-**appointment_type_fields** -- Konfigurierbare Felder pro Terminart:
-- `id` (uuid, PK)
-- `appointment_type_id` (uuid, FK -> appointment_types)
-- `label` (text) -- Feldbezeichnung
-- `field_type` (text) -- 'text', 'textarea', 'dropdown', 'boolean', 'date', 'photo'
-- `placeholder` (text, default '')
-- `options` (jsonb, default '[]') -- Dropdown-Optionen
-- `is_required` (boolean, default false)
-- `width` (text, default 'half') -- 'half' oder 'full'
-- `display_order` (integer, default 0)
-- `created_at` (timestamptz)
+### Checklisten-Liste (im "Checklisten"-Subtab von SettingsOrderTypes)
 
-**appointment_type_documents** -- Welche Dokumenttypen eine Terminart erfordert:
-- `id` (uuid, PK)
-- `appointment_type_id` (uuid, FK -> appointment_types)
-- `document_type_id` (uuid, FK -> document_types)
-- `created_at` (timestamptz)
+- Filterung nach Terminart (Tabs oder Dropdown mit allen verfuegbaren Terminarten)
+- Liste der Checklisten-Vorlagen als Karten mit Name, Beschreibung, Standard-Badge
+- "Neue Checkliste"-Button
+- Edit/Delete pro Checkliste
 
-**job_appointments** -- Konkrete Termine eines Auftrags (basierend auf Terminart):
-- `id` (uuid, PK)
-- `job_id` (uuid, FK -> jobs)
-- `appointment_type_id` (uuid, FK -> appointment_types)
-- `start_date` (timestamptz, nullable)
-- `end_date` (timestamptz, nullable)
-- `status` (text, default 'offen') -- offen, geplant, abgeschlossen
-- `notes` (text, default '')
-- `field_values` (jsonb, default '{}') -- Gespeicherte Feldwerte
-- `created_at` (timestamptz)
+### Checkliste bearbeiten/erstellen Dialog
 
-Alle neuen Tabellen erhalten RLS-Policies analog zu den bestehenden (Admin/Office/Teamleiter: ALL, Monteur: SELECT).
+Grosser Dialog mit:
+- **Name** (Pflichtfeld)
+- **Beschreibung** (optional, Textarea)
+- **Terminart** (Dropdown: alle verfuegbaren Terminarten aus allen Projektarten)
+- **Als Standard-Checkliste markieren** (Toggle -- wird automatisch hinzugefuegt wenn Terminart im Auftrag ist)
 
-### Seed-Daten
-
-Einfuegen der Standard-Auftragsarten und zugehoerige Terminarten:
-
-- **Waermepumpe (WP)**: SHK Montage (SHK, Intern), Elektro-WP (Elektro, Intern), Fundament (Fundament, Extern)
-- **Photovoltaik (PV)**: Dachmontage (Dach, Extern), Elektroarbeiten Keller (Elektro, Intern)
-- **Installation WP**: Gleiche Terminarten wie WP
-- **Installation PV**: Gleiche Terminarten wie PV
-
-Standard-Dokumenttypen einfuegen: Installationsanleitung, Hydraulischer Abgleich, Hydraulikplan, Anschlussplan, Fundamentplan, Bilder, Sonstiges, Reglereinstellungen, Fotos.
-
-## Frontend-Aenderungen
-
-### 1. Settings: Neuer Tab "Projektarten" (AdminSettings.tsx)
-
-Neuer Tab in den Einstellungen mit einer Seite analog zum Screenshot:
-
-**SettingsOrderTypes.tsx** -- Neue Komponente:
-- Liste aller Auftragsarten als aufklappbare Karten (Accordion)
-- Jede Karte zeigt: Name, System-Badge, Anzahl Terminarten
-- "Neue Projektart"-Button zum Anlegen
-- "Bearbeiten"-Button pro Auftragsart
-- Unter jeder Auftragsart: Liste der Terminarten mit Trade-Badge, Intern/Extern-Badge, Edit/Delete-Buttons
-- "Terminart hinzufuegen"-Button
-
-**EditAppointmentTypeDialog.tsx** -- Dialog mit 3 Tabs:
-- **Einstellungen**: Name, Beschreibung, Gewerk (Trade-Dropdown), Intern/Extern-Toggle, Aktiv-Toggle
-- **Felder**: Liste konfigurierbarer Felder mit Drag-and-Drop-Reihenfolge. "Neues Feld"-Button oeffnet Unter-Dialog mit: Label, Feldtyp (Text/Textarea/Dropdown/Ja-Nein/Datum/Foto-Upload), Platzhaltertext, Pflichtfeld-Toggle, Breite (Halbe/Volle Breite). Bei Dropdown: Optionen konfigurieren.
-- **Dokumente**: Dropdown zum Auswaehlen eines Dokumenttyps + Hinzufuegen-Button. Liste der zugewiesenen Dokumenttypen mit Loeschen-Moeglichkeit.
-
-### 2. Auftrags-Erstellung: Standard-Termine anlegen (CreateJobWizard.tsx)
-
-Wenn ein Auftrag erstellt wird:
-- Die Auftragsart (WP/PV/INST-WP/INST-PV) wird mit `order_type_id` verknuepft
-- Alle aktiven Terminarten dieser Auftragsart werden automatisch als `job_appointments` angelegt (Status: "offen", ohne Datum)
-
-### 3. Auftragsdetail: Termine und Dokument-Tracking (AdminJobDetail.tsx)
-
-**Termine-Tab erweitert:**
-- Zeigt `job_appointments` statt der bisherigen `trade_appointments`
-- Jeder Termin zeigt: Terminart-Name, Trade-Badge, Status, Datum (falls geplant)
-- "Termin hinzufuegen"-Button: Oeffnet Dialog mit Terminart-Auswahl (alle verfuegbaren Terminarten)
-- Klick auf Termin zeigt die konfigurierten Felder zum Ausfuellen
-
-**Dokumente-Tab erweitert:**
-- Zeigt pro Terminart welche Dokumente erforderlich sind (aus `appointment_type_documents`)
-- Gruen markiert: Dokument bereits hochgeladen
-- Rot/Grau markiert: Dokument fehlt noch
-- Upload-Moeglichkeit direkt in der Uebersicht
-
-### 4. Neue Hooks
-
-- `useOrderTypes.ts` -- CRUD fuer order_types mit appointment_types
-- `useAppointmentTypes.ts` -- CRUD fuer appointment_types inkl. fields und documents
-- `useJobAppointments.ts` -- CRUD fuer job_appointments
+**Schritte-Bereich:**
+- Liste aller Schritte mit Drag-Handle, Typ-Icon, Titel, Beschreibung, Delete-Button
+- Gruppierte Schritte werden eingerueckt dargestellt
+- "Schritt hinzufuegen"-Button oeffnet Inline-Formular:
+  - Titel (Pflicht)
+  - Beschreibung (optional)
+  - Typ: Checkbox, Freitext, Foto
+  - Antwortoptionen (optional, kommagetrennt -- z.B. "Ja, Nein, Teilweise")
+  - Uebergeordneter Schritt (Dropdown: "Kein uebergeordneter Schritt" oder bestehende Schritte als Gruppen)
+- "Gruppe hinzufuegen"-Button erstellt einen Schritt vom Typ "group" der als aufklappbarer Container dient
 
 ## Technische Details
 
+### Datenbank-Migration
+- ALTER TABLE `checklist_templates` ADD `description` text DEFAULT '', ADD `appointment_type_id` uuid REFERENCES appointment_types(id) ON DELETE SET NULL
+- ALTER TABLE `checklist_template_steps` ADD `description` text DEFAULT '', ADD `parent_step_id` uuid REFERENCES checklist_template_steps(id) ON DELETE CASCADE, ADD `options` jsonb DEFAULT '[]'
+
 ### Neue Dateien
-- `src/components/settings/SettingsOrderTypes.tsx`
-- `src/components/settings/EditAppointmentTypeDialog.tsx`
-- `src/components/settings/EditOrderTypeDialog.tsx`
-- `src/hooks/useOrderTypes.ts`
-- `src/hooks/useAppointmentTypes.ts`
-- `src/hooks/useJobAppointments.ts`
+- `src/components/settings/SettingsChecklists.tsx` -- Checklisten-Liste und -Verwaltung
+- `src/components/settings/EditChecklistDialog.tsx` -- Dialog zum Bearbeiten/Erstellen einer Checkliste
+- `src/hooks/useChecklistTemplates.ts` -- CRUD-Hook fuer checklist_templates und checklist_template_steps
 
 ### Geaenderte Dateien
-- `src/pages/AdminSettings.tsx` -- Neuer Tab "Projektarten"
-- `src/pages/AdminJobDetail.tsx` -- Erweiterte Termine- und Dokumenten-Ansicht
-- `src/components/montage/CreateJobWizard.tsx` -- order_type_id setzen + auto-Termine
-- `src/types/montage.ts` -- Neue Interfaces fuer Fields, JobAppointment, etc.
+- `src/components/settings/SettingsOrderTypes.tsx` -- Checklisten-Subtab rendert neue Komponente, Trade-Referenzen in Terminarten entfernen
+- `src/components/settings/EditAppointmentTypeDialog.tsx` -- Gewerk-Dropdown entfernen
+- `src/types/montage.ts` -- ChecklistTemplate/Step-Interfaces erweitern (description, parent_step_id, options, appointment_type_id)
 
-### Datenfluss bei Auftragserstellung
-
-```text
-Wizard Schritt 3: Auftragsart waehlen (WP/PV/...)
-    |
-    v
-order_type_id wird am Job gespeichert
-    |
-    v
-Alle aktiven appointment_types dieser order_type_id werden geladen
-    |
-    v
-Fuer jeden appointment_type wird ein job_appointment erstellt
-    (status: 'offen', keine Daten, leere field_values)
-    |
-    v
-Auftrag oeffnen -> Termine-Tab zeigt alle job_appointments
-    +-- Jeder Termin kann geplant und Felder ausgefuellt werden
-    +-- Dokumente-Tab zeigt Soll/Ist der erforderlichen Dokumente
-```
+### Schritt-Typen
+- `checkbox` -- Einfache Abhakmeldung (mit optionalen Antwortoptionen)
+- `text` -- Freitextfeld
+- `photo` -- Foto-Upload
+- `group` -- Gruppierung (Container fuer untergeordnete Schritte, aufklappbar)
