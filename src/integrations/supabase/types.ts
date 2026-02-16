@@ -14,11 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_assignments: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          id: string
+          person_id: string
+          person_name: string | null
+          team_id: string | null
+          trade: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          id?: string
+          person_id: string
+          person_name?: string | null
+          team_id?: string | null
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          id?: string
+          person_id?: string
+          person_name?: string | null
+          team_id?: string | null
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "trade_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignments_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_types: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_internal: boolean
+          name: string
+          order_type_id: string
+          requires_documents: boolean
+          trade: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_internal?: boolean
+          name: string
+          order_type_id: string
+          requires_documents?: boolean
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_internal?: boolean
+          name?: string
+          order_type_id?: string
+          requires_documents?: boolean
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_types_order_type_id_fkey"
+            columns: ["order_type_id"]
+            isOneToOne: false
+            referencedRelation: "order_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bonus_settings: {
         Row: {
           half_year_bonus_pool: number
           id: string
           module_fahrzeuglager_enabled: boolean
+          module_klyma_os_enabled: boolean
           module_performance_enabled: boolean
           require_approval: boolean
           threshold_min_bonus: number
@@ -34,6 +121,7 @@ export type Database = {
           half_year_bonus_pool?: number
           id?: string
           module_fahrzeuglager_enabled?: boolean
+          module_klyma_os_enabled?: boolean
           module_performance_enabled?: boolean
           require_approval?: boolean
           threshold_min_bonus?: number
@@ -49,6 +137,7 @@ export type Database = {
           half_year_bonus_pool?: number
           id?: string
           module_fahrzeuglager_enabled?: boolean
+          module_klyma_os_enabled?: boolean
           module_performance_enabled?: boolean
           require_approval?: boolean
           threshold_min_bonus?: number
@@ -59,6 +148,208 @@ export type Database = {
           weight_reliability?: number
           weight_speed?: number
           weight_team?: number
+        }
+        Relationships: []
+      }
+      checklist_template_steps: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean
+          order_index: number
+          step_type: string
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          order_index?: number
+          step_type?: string
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          order_index?: number
+          step_type?: string
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_steps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_standard: boolean
+          name: string
+          trade: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_standard?: boolean
+          name: string
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_standard?: boolean
+          name?: string
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Relationships: []
+      }
+      client_contacts: {
+        Row: {
+          client_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          role: string | null
+        }
+        Insert: {
+          client_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          role?: string | null
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          billing_city: string | null
+          billing_postal_code: string | null
+          billing_street: string | null
+          client_type: string
+          company_name: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          billing_city?: string | null
+          billing_postal_code?: string | null
+          billing_street?: string | null
+          client_type?: string
+          company_name?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          billing_city?: string | null
+          billing_postal_code?: string | null
+          billing_street?: string | null
+          client_type?: string
+          company_name?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      document_types: {
+        Row: {
+          applicable_trades: Database["public"]["Enums"]["trade_type"][] | null
+          category: string | null
+          created_at: string
+          id: string
+          is_required: boolean
+          name: string
+        }
+        Insert: {
+          applicable_trades?: Database["public"]["Enums"]["trade_type"][] | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          name: string
+        }
+        Update: {
+          applicable_trades?: Database["public"]["Enums"]["trade_type"][] | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          name?: string
         }
         Relationships: []
       }
@@ -97,6 +388,282 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_checklist_steps: {
+        Row: {
+          checklist_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          is_required: boolean
+          order_index: number
+          photo_url: string | null
+          step_type: string
+          template_step_id: string | null
+          text_value: string | null
+          title: string
+        }
+        Insert: {
+          checklist_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_required?: boolean
+          order_index?: number
+          photo_url?: string | null
+          step_type?: string
+          template_step_id?: string | null
+          text_value?: string | null
+          title: string
+        }
+        Update: {
+          checklist_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_required?: boolean
+          order_index?: number
+          photo_url?: string | null
+          step_type?: string
+          template_step_id?: string | null
+          text_value?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_checklist_steps_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "job_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_checklist_steps_template_step_id_fkey"
+            columns: ["template_step_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_checklists: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          job_id: string
+          name: string
+          status: string
+          template_id: string | null
+          trade: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          name: string
+          status?: string
+          template_id?: string | null
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          name?: string
+          status?: string
+          template_id?: string | null
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_checklists_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_checklists_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_documents: {
+        Row: {
+          created_at: string
+          document_type_id: string | null
+          file_name: string
+          file_path: string
+          id: string
+          job_id: string
+          trade: Database["public"]["Enums"]["trade_type"] | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type_id?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          job_id: string
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type_id?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          job_id?: string
+          trade?: Database["public"]["Enums"]["trade_type"] | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_documents_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_documents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_trade_details: {
+        Row: {
+          appointment_end: string | null
+          appointment_start: string | null
+          assigned_team_members: string[] | null
+          created_at: string
+          id: string
+          job_id: string
+          technical_info: string | null
+          trade: Database["public"]["Enums"]["trade_type"]
+        }
+        Insert: {
+          appointment_end?: string | null
+          appointment_start?: string | null
+          assigned_team_members?: string[] | null
+          created_at?: string
+          id?: string
+          job_id: string
+          technical_info?: string | null
+          trade: Database["public"]["Enums"]["trade_type"]
+        }
+        Update: {
+          appointment_end?: string | null
+          appointment_start?: string | null
+          assigned_team_members?: string[] | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          technical_info?: string | null
+          trade?: Database["public"]["Enums"]["trade_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_trade_details_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          active_trades: Database["public"]["Enums"]["trade_type"][]
+          assigned_to: string[] | null
+          client_id: string | null
+          created_at: string
+          description: string | null
+          estimated_hours: number | null
+          id: string
+          job_number: string
+          order_type_id: string | null
+          property_id: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          title: string
+          trades: Database["public"]["Enums"]["trade_type"][]
+          updated_at: string
+        }
+        Insert: {
+          active_trades?: Database["public"]["Enums"]["trade_type"][]
+          assigned_to?: string[] | null
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          job_number?: string
+          order_type_id?: string | null
+          property_id?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+          trades?: Database["public"]["Enums"]["trade_type"][]
+          updated_at?: string
+        }
+        Update: {
+          active_trades?: Database["public"]["Enums"]["trade_type"][]
+          assigned_to?: string[] | null
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          job_number?: string
+          order_type_id?: string | null
+          property_id?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+          trades?: Database["public"]["Enums"]["trade_type"][]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_order_type_id_fkey"
+            columns: ["order_type_id"]
+            isOneToOne: false
+            referencedRelation: "order_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -144,6 +711,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+        }
+        Relationships: []
       }
       performance_reviews: {
         Row: {
@@ -240,6 +837,92 @@ export type Database = {
           },
         ]
       }
+      properties: {
+        Row: {
+          city: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          old_heating: string | null
+          postal_code: string | null
+          property_type: string | null
+          street_address: string | null
+        }
+        Insert: {
+          city?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          old_heating?: string | null
+          postal_code?: string | null
+          property_type?: string | null
+          street_address?: string | null
+        }
+        Update: {
+          city?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          old_heating?: string | null
+          postal_code?: string | null
+          property_type?: string | null
+          street_address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          property_id: string
+          role: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          property_id: string
+          role?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          property_id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teamleiter_monteur_assignments: {
         Row: {
           created_at: string
@@ -278,6 +961,44 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      trade_appointments: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          job_id: string
+          notes: string | null
+          start_date: string
+          trade: Database["public"]["Enums"]["trade_type"]
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          job_id: string
+          notes?: string | null
+          start_date: string
+          trade: Database["public"]["Enums"]["trade_type"]
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          job_id?: string
+          notes?: string | null
+          start_date?: string
+          trade?: Database["public"]["Enums"]["trade_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_appointments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -400,6 +1121,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "monteur" | "teamleiter" | "office"
+      job_status:
+        | "erstellt"
+        | "vorbereitet"
+        | "verplant"
+        | "durchgefuehrt"
+        | "abgerechnet"
+      trade_type: "SHK" | "Elektro" | "Fundament" | "Dach" | "GaLa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -528,6 +1256,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "monteur", "teamleiter", "office"],
+      job_status: [
+        "erstellt",
+        "vorbereitet",
+        "verplant",
+        "durchgefuehrt",
+        "abgerechnet",
+      ],
+      trade_type: ["SHK", "Elektro", "Fundament", "Dach", "GaLa"],
     },
   },
 } as const
