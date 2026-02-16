@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
 import { toast } from 'sonner';
@@ -21,13 +21,16 @@ const AdminJobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { jobs, loading } = useJobs();
-  const { documents } = useJobDocuments(id);
+  const { documents, uploadDocument, deleteDocument, getDownloadUrl } = useJobDocuments(id);
   const { checklists } = useJobChecklists(id);
   const { appointments, createJobAppointment } = useJobAppointments(id);
   const { orderTypes } = useOrderTypes();
 
   const [showAddAppointment, setShowAddAppointment] = useState(false);
   const [selectedAppTypeId, setSelectedAppTypeId] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const reqFileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null);
 
   const job = jobs.find((j) => j.id === id);
 
@@ -62,6 +65,35 @@ const AdminJobDetail = () => {
       setSelectedAppTypeId('');
       toast.success('Termin hinzugefügt.');
     } catch { toast.error('Fehler.'); }
+  };
+
+  const handleFileUpload = async (file: File, documentTypeId?: string) => {
+    if (!id) return;
+    try {
+      await uploadDocument.mutateAsync({ jobId: id, file, documentTypeId });
+      toast.success('Dokument hochgeladen.');
+    } catch { toast.error('Fehler beim Hochladen.'); }
+  };
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    const url = await getDownloadUrl(filePath);
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.target = '_blank';
+      a.click();
+    } else {
+      toast.error('Download-Link konnte nicht erstellt werden.');
+    }
+  };
+
+  const handleDelete = async (docId: string, filePath: string) => {
+    if (!confirm('Dokument wirklich löschen?')) return;
+    try {
+      await deleteDocument.mutateAsync({ id: docId, filePath });
+      toast.success('Dokument gelöscht.');
+    } catch { toast.error('Fehler beim Löschen.'); }
   };
 
   if (loading) {
@@ -167,37 +199,94 @@ const AdminJobDetail = () => {
         </TabsContent>
 
         <TabsContent value="documents">
+          {/* Hidden file inputs */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileUpload(file);
+              e.target.value = '';
+            }}
+          />
+          <input
+            type="file"
+            ref={reqFileInputRef}
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && uploadingDocTypeId) handleFileUpload(file, uploadingDocTypeId);
+              e.target.value = '';
+              setUploadingDocTypeId(null);
+            }}
+          />
+
           {requiredDocs.length > 0 && (
             <div className="space-y-2 mb-4">
               <h4 className="text-sm font-semibold">Erforderliche Dokumente</h4>
               {requiredDocs.map((rd, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  {rd.uploaded ? (
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-destructive" />
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    {rd.uploaded ? (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    <span>{rd.docTypeName}</span>
+                    <span className="text-xs text-muted-foreground">({rd.appointmentName})</span>
+                  </div>
+                  {!rd.uploaded && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 h-7 text-xs"
+                      disabled={uploadDocument.isPending}
+                      onClick={() => {
+                        setUploadingDocTypeId(rd.docTypeId);
+                        reqFileInputRef.current?.click();
+                      }}
+                    >
+                      <Upload className="h-3 w-3" /> Hochladen
+                    </Button>
                   )}
-                  <span>{rd.docTypeName}</span>
-                  <span className="text-xs text-muted-foreground">({rd.appointmentName})</span>
                 </div>
               ))}
             </div>
           )}
-          {documents.length === 0 && requiredDocs.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Keine Dokumente vorhanden.</p>
-          ) : (
-            <div className="space-y-2">
-              {documents.map((d) => (
-                <Card key={d.id}>
-                  <CardContent className="p-3 flex items-center gap-2">
+
+          <div className="space-y-2">
+            {documents.map((d) => (
+              <Card key={d.id}>
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{d.file_name}</span>
+                    {d.document_type && <Badge variant="secondary" className="text-xs">{d.document_type.name}</Badge>}
                     {d.trade && <Badge variant="outline" className="text-xs">{d.trade}</Badge>}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(d.file_path, d.file_name)}>
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(d.id, d.file_path)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 mt-3"
+            disabled={uploadDocument.isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Plus className="h-4 w-4" /> {uploadDocument.isPending ? 'Wird hochgeladen…' : 'Dokument hochladen'}
+          </Button>
         </TabsContent>
 
         <TabsContent value="checklists">

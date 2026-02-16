@@ -40,10 +40,19 @@ export const useJobDocuments = (jobId: string | undefined) => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['job-documents', jobId] }),
   });
 
+  const deleteDocument = useMutation({
+    mutationFn: async ({ id, filePath }: { id: string; filePath: string }) => {
+      await supabase.storage.from('job-documents').remove([filePath]);
+      const { error } = await supabase.from('job_documents').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['job-documents', jobId] }),
+  });
+
   const getDownloadUrl = async (filePath: string) => {
     const { data } = await supabase.storage.from('job-documents').createSignedUrl(filePath, 3600);
     return data?.signedUrl;
   };
 
-  return { documents: documentsQuery.data || [], loading: documentsQuery.isLoading, uploadDocument, getDownloadUrl };
+  return { documents: documentsQuery.data || [], loading: documentsQuery.isLoading, uploadDocument, deleteDocument, getDownloadUrl };
 };
