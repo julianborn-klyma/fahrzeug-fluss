@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useAssignedJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
+import { useJobAppointments } from '@/hooks/useJobAppointments';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import ChecklistDetailDialog from '@/components/montage/ChecklistDetailDialog';
@@ -12,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye, ChevronDown } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
 import { toast } from 'sonner';
 
@@ -23,9 +25,57 @@ const MonteurJobDetail = () => {
   const { data: jobs, isLoading } = useAssignedJobs(user?.id);
   const { documents, getDownloadUrl } = useJobDocuments(id);
   const { checklists, updateStep } = useJobChecklists(id);
+  const { appointments } = useJobAppointments(id);
+  const [previewDocIndex, setPreviewDocIndex] = useState<number | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
+
+  // Flat list of all documents for arrow navigation
+  const allDocsList = documents;
+
+  // Group documents by appointment type
+  const groupedDocuments = useMemo(() => {
+    // Build a map: document_type_id -> appointment_type_name
+    const docTypeToApptType = new Map<string, string>();
+    for (const appt of appointments) {
+      const typeName = appt.appointment_type?.name || 'Termin';
+      const reqDocs = appt.appointment_type?.required_documents || [];
+      for (const rd of reqDocs) {
+        if (rd.document_type_id) {
+          docTypeToApptType.set(rd.document_type_id, typeName);
+        }
+      }
+    }
+
+    const groups = new Map<string, typeof documents>();
+    for (const doc of documents) {
+      const groupName = (doc.document_type_id && docTypeToApptType.get(doc.document_type_id)) || 'Sonstige';
+      if (!groups.has(groupName)) groups.set(groupName, []);
+      groups.get(groupName)!.push(doc);
+    }
+    return Array.from(groups.entries()).map(([name, docs]) => ({ name, docs }));
+  }, [documents, appointments]);
+
+  const openPreview = useCallback(async (doc: typeof documents[0], index: number) => {
+    setPreviewDocIndex(index);
+    setPreviewLoading(true);
+    setPreviewDoc({ fileName: doc.file_name, url: null });
+    const url = await getDownloadUrl(doc.file_path);
+    setPreviewDoc({ fileName: doc.file_name, url: url || null });
+    setPreviewLoading(false);
+  }, [getDownloadUrl]);
+
+  const navigatePreview = useCallback(async (newIndex: number) => {
+    if (newIndex < 0 || newIndex >= allDocsList.length) return;
+    const doc = allDocsList[newIndex];
+    setPreviewDocIndex(newIndex);
+    setPreviewLoading(true);
+    setPreviewDoc({ fileName: doc.file_name, url: null });
+    const url = await getDownloadUrl(doc.file_path);
+    setPreviewDoc({ fileName: doc.file_name, url: url || null });
+    setPreviewLoading(false);
+  }, [allDocsList, getDownloadUrl]);
 
   const job = jobs?.find((j) => j.id === id);
 
@@ -114,28 +164,38 @@ const MonteurJobDetail = () => {
                 {documents.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Keine Dokumente vorhanden.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {documents.map((d) => (
-                      <Card key={d.id}>
-                        <CardContent className="p-3 flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm truncate">{d.file_name}</span>
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={async () => {
-                            setPreviewLoading(true);
-                            setPreviewDoc({ fileName: d.file_name, url: null });
-                            const url = await getDownloadUrl(d.file_path);
-                            setPreviewDoc({ fileName: d.file_name, url: url || null });
-                            setPreviewLoading(false);
-                          }}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDownload(d.file_path, d.file_name)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </CardContent>
-                      </Card>
+                  <div className="space-y-3">
+                    {groupedDocuments.map((group) => (
+                      <Collapsible key={group.name} defaultOpen>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 px-1 hover:bg-muted/50 rounded-md transition-colors">
+                          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-0 [&[data-state=closed]]:-rotate-90" />
+                          <span className="text-sm font-medium">{group.name}</span>
+                          <Badge variant="secondary" className="text-xs ml-auto">{group.docs.length}</Badge>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-1.5 mt-1.5 pl-2">
+                          {group.docs.map((d) => {
+                            const globalIndex = allDocsList.findIndex((doc) => doc.id === d.id);
+                            return (
+                              <Card key={d.id}>
+                                <CardContent className="p-3 flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <span className="text-sm truncate">{d.file_name}</span>
+                                  </div>
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button variant="ghost" size="icon" onClick={() => openPreview(d, globalIndex)}>
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDownload(d.file_path, d.file_name)}>
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
                     ))}
                   </div>
                 )}
@@ -179,10 +239,14 @@ const MonteurJobDetail = () => {
 
       <DocumentPreviewDialog
         open={!!previewDoc}
-        onOpenChange={(o) => { if (!o) setPreviewDoc(null); }}
+        onOpenChange={(o) => { if (!o) { setPreviewDoc(null); setPreviewDocIndex(null); } }}
         fileName={previewDoc?.fileName || ''}
         fileUrl={previewDoc?.url || null}
         loading={previewLoading}
+        hasPrev={previewDocIndex !== null && previewDocIndex > 0}
+        hasNext={previewDocIndex !== null && previewDocIndex < allDocsList.length - 1}
+        onPrev={() => previewDocIndex !== null && navigatePreview(previewDocIndex - 1)}
+        onNext={() => previewDocIndex !== null && navigatePreview(previewDocIndex + 1)}
       />
 
       <ChecklistDetailDialog
