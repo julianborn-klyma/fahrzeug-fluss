@@ -14,9 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
+import JobStatusTimeline from '@/components/montage/JobStatusTimeline';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import { Label } from '@/components/ui/label';
-import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType } from '@/types/montage';
+import { JOB_STATUS_LABELS, TRADE_LABELS, type TradeType, type JobStatus } from '@/types/montage';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -153,8 +154,18 @@ const AdminJobDetail = () => {
           <p className="text-sm text-muted-foreground">{job.job_number}</p>
           {job.order_type && <Badge variant="secondary" className="mt-1">{job.order_type.name}</Badge>}
         </div>
-        <Badge>{JOB_STATUS_LABELS[job.status]}</Badge>
       </div>
+
+      {/* Status Timeline */}
+      <JobStatusTimeline
+        job={job}
+        appointments={appointments}
+        documents={documents}
+        onStatusChange={async (newStatus) => {
+          await updateJob.mutateAsync({ id: job.id, status: newStatus } as any);
+          toast.success(`Status geändert: ${JOB_STATUS_LABELS[newStatus]}`);
+        }}
+      />
 
       {job.property && (
         <p className="text-sm text-muted-foreground flex items-center gap-1">

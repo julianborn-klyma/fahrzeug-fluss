@@ -13,11 +13,12 @@ import CreatePropertyDialog from '@/components/montage/CreatePropertyDialog';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
 
 const statusColor: Record<JobStatus, string> = {
-  erstellt: 'bg-muted text-muted-foreground',
-  vorbereitet: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  verplant: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  durchgefuehrt: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  abgerechnet: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  neu: 'bg-muted text-muted-foreground',
+  in_planung: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  vorbereitet: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  in_umsetzung: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  nacharbeiten: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  abgeschlossen: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
 
 const AdminMontageKundenDetail = () => {
