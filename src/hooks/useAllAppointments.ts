@@ -11,19 +11,23 @@ export const useAllAppointments = () => {
         .order('start_date', { ascending: true, nullsFirst: false });
       if (error) throw error;
 
-      // Fetch checklists for all appointments
+      // Fetch checklists with steps for all appointments
       const ids = (data || []).map((d: any) => d.id);
       let checklistsMap: Record<string, any[]> = {};
       if (ids.length > 0) {
         const { data: checklists } = await supabase
           .from('job_checklists')
-          .select('id, appointment_id')
-          .in('appointment_id', ids);
+          .select('id, appointment_id, name, status, job_checklist_steps(id, title, step_type, is_completed, is_required, parent_step_id, order_index)')
+          .in('appointment_id', ids)
+          .order('created_at');
         for (const cl of (checklists || [])) {
-          const apptId = cl.appointment_id;
+          const apptId = (cl as any).appointment_id;
           if (apptId) {
             if (!checklistsMap[apptId]) checklistsMap[apptId] = [];
-            checklistsMap[apptId].push(cl);
+            checklistsMap[apptId].push({
+              ...cl,
+              steps: ((cl as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
+            });
           }
         }
       }
