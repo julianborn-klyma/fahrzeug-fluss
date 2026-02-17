@@ -548,6 +548,7 @@ export type Database = {
           is_internal: boolean | null
           job_id: string
           notes: string
+          signature_url: string | null
           start_date: string | null
           status: string
         }
@@ -560,6 +561,7 @@ export type Database = {
           is_internal?: boolean | null
           job_id: string
           notes?: string
+          signature_url?: string | null
           start_date?: string | null
           status?: string
         }
@@ -572,6 +574,7 @@ export type Database = {
           is_internal?: boolean | null
           job_id?: string
           notes?: string
+          signature_url?: string | null
           start_date?: string | null
           status?: string
         }
@@ -1414,6 +1417,8 @@ export type Database = {
         | "in_umsetzung"
         | "nacharbeiten"
         | "abgeschlossen"
+        | "review"
+        | "abgenommen"
       trade_type: "SHK" | "Elektro" | "Fundament" | "Dach" | "GaLa"
     }
     CompositeTypes: {
@@ -1554,6 +1559,8 @@ export const Constants = {
         "in_umsetzung",
         "nacharbeiten",
         "abgeschlossen",
+        "review",
+        "abgenommen",
       ],
       trade_type: ["SHK", "Elektro", "Fundament", "Dach", "GaLa"],
     },

@@ -59,7 +59,7 @@ export function validateVorbereitetRequirements(
   return { valid: warnings.length === 0, warnings };
 }
 
-const STATUSES_REQUIRING_VALIDATION: JobStatus[] = ['vorbereitet', 'in_umsetzung', 'nacharbeiten', 'abgeschlossen'];
+const STATUSES_REQUIRING_VALIDATION: JobStatus[] = ['vorbereitet', 'in_umsetzung', 'review', 'abgenommen', 'nacharbeiten', 'abgeschlossen'];
 
 const JobStatusTimeline = ({ job, appointments, documents, onStatusChange }: JobStatusTimelineProps) => {
   const [loading, setLoading] = useState(false);
