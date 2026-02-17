@@ -10,6 +10,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2,
   CheckSquare, Plus, Eye, Trash2, X, Maximize2,
@@ -461,131 +462,153 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 mt-2">
-          {/* Date & Time */}
-          <section>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Startdatum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="text-xs">Startzeit</Label>
-                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
-              </div>
-              <div>
-                <Label className="text-xs">Enddatum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="text-xs">Endzeit</Label>
-                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
-              </div>
-            </div>
-            <Button size="sm" className="mt-2 h-7 text-xs" onClick={saveDate} disabled={!startDate || !endDate}>
-              Datum speichern
-            </Button>
-          </section>
+        <Tabs defaultValue="details" className="mt-2">
+          <TabsList className="w-full">
+            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+            <TabsTrigger value="checklists" className="flex-1">
+              Checklisten
+              {totalSteps > 0 && (
+                <Badge variant={checklistPercent === 100 ? 'default' : 'secondary'} className="ml-1.5 text-[10px] px-1.5 py-0">
+                  {doneSteps}/{totalSteps}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-          <Separator />
-
-          {/* Monteure */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" /> Zugewiesene Monteure
+          <TabsContent value="details" className="space-y-4 mt-3">
+            {/* Date & Time */}
+            <section>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
               </h4>
-              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setShowAddMonteur(true)}>
-                <Plus className="h-3 w-3" /> Zuweisen
-              </Button>
-            </div>
-            {assignments.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Keine Monteure zugeordnet.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {assignments.map((ass: any) => (
-                  <Badge key={ass.id} variant="secondary" className="gap-1 pr-1">
-                    {ass.person_name || '?'}
-                    <button className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5" onClick={() => handleRemoveMonteur(ass.id)}>
-                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <Separator />
-
-          {/* Fields */}
-          <section>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Felder</h4>
-            {fields.length > 0 ? (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  {fields.map((f: any) => {
-                    const val = fieldValues[f.id];
-                    const isEmpty = val === undefined || val === null || val === '';
-                    return (
-                      <div key={f.id} className="text-sm">
-                        <span className="text-muted-foreground text-xs">
-                          {f.label}
-                          {f.is_required && <span className="text-destructive ml-0.5">*</span>}
-                        </span>
-                        <p className={cn("font-medium text-sm", isEmpty && "text-muted-foreground/50 italic")}>
-                          {isEmpty ? '—' : String(val)}
-                        </p>
-                      </div>
-                    );
-                  })}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Startdatum</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                {requiredFields.length > 0 && (
-                  <div className="flex items-center gap-2 text-xs mt-2">
-                    {isFieldsComplete ? (
-                      <span className="flex items-center gap-1 text-primary">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Alle Pflichtfelder ausgefüllt
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-destructive">
-                        <AlertCircle className="h-3.5 w-3.5" /> {requiredFields.length - filledRequired.length} offen
-                      </span>
-                    )}
+                <div>
+                  <Label className="text-xs">Startzeit</Label>
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
+                </div>
+                <div>
+                  <Label className="text-xs">Enddatum</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-xs">Endzeit</Label>
+                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
+                </div>
+              </div>
+              <Button size="sm" className="mt-2 h-7 text-xs" onClick={saveDate} disabled={!startDate || !endDate}>
+                Datum speichern
+              </Button>
+            </section>
+
+            <Separator />
+
+            {/* Monteure */}
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" /> Zugewiesene Monteure
+                </h4>
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setShowAddMonteur(true)}>
+                  <Plus className="h-3 w-3" /> Zuweisen
+                </Button>
+              </div>
+              {assignments.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Keine Monteure zugeordnet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {assignments.map((ass: any) => (
+                    <Badge key={ass.id} variant="secondary" className="gap-1 pr-1">
+                      {ass.person_name || '?'}
+                      <button className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5" onClick={() => handleRemoveMonteur(ass.id)}>
+                        <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Fields */}
+            <section>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Felder</h4>
+              {fields.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {fields.map((f: any) => {
+                      const val = fieldValues[f.id];
+                      const isEmpty = val === undefined || val === null || val === '';
+                      return (
+                        <div key={f.id} className="text-sm">
+                          <span className="text-muted-foreground text-xs">
+                            {f.label}
+                            {f.is_required && <span className="text-destructive ml-0.5">*</span>}
+                          </span>
+                          <p className={cn("font-medium text-sm", isEmpty && "text-muted-foreground/50 italic")}>
+                            {isEmpty ? '—' : String(val)}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                  {requiredFields.length > 0 && (
+                    <div className="flex items-center gap-2 text-xs mt-2">
+                      {isFieldsComplete ? (
+                        <span className="flex items-center gap-1 text-primary">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Alle Pflichtfelder ausgefüllt
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5" /> {requiredFields.length - filledRequired.length} offen
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">Keine Felder definiert.</p>
+              )}
+            </section>
+
+            {/* Notes */}
+            {a.notes && (
+              <>
+                <Separator />
+                <section>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notizen</h4>
+                  <p className="text-sm">{a.notes}</p>
+                </section>
               </>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">Keine Felder definiert.</p>
             )}
-          </section>
+          </TabsContent>
 
-          <Separator />
-
-          {/* Checklists */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
+          <TabsContent value="checklists" className="space-y-4 mt-3">
+            <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
                 <CheckSquare className="h-3.5 w-3.5" /> Checklisten
               </h4>
@@ -651,19 +674,8 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                 })}
               </div>
             )}
-          </section>
-
-          {/* Notes */}
-          {a.notes && (
-            <>
-              <Separator />
-              <section>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notizen</h4>
-                <p className="text-sm">{a.notes}</p>
-              </section>
-            </>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
