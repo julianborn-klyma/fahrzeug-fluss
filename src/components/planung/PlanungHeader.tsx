@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar, Map, Eye, EyeOff } from 'lucide-re
 import { format, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-export type ViewMode = 'day' | 'week' | 'month';
+export type ViewMode = 'day' | 'week' | 'r4w' | 'month';
 export type RightPanel = 'sidebar' | 'map';
 
 interface Props {
@@ -46,7 +46,7 @@ const PlanungHeader = ({
 
       <div className="flex items-center gap-2">
         <div className="flex border rounded-lg overflow-hidden">
-          {(['day', 'week', 'month'] as ViewMode[]).map(m => (
+          {(['day', 'week', 'r4w', 'month'] as ViewMode[]).map(m => (
             <Button
               key={m}
               variant={viewMode === m ? 'default' : 'ghost'}
@@ -54,7 +54,7 @@ const PlanungHeader = ({
               className="rounded-none px-3 h-8"
               onClick={() => onViewModeChange(m)}
             >
-              {m === 'day' ? 'Tag' : m === 'week' ? 'Woche' : 'Monat'}
+              {m === 'day' ? 'Tag' : m === 'week' ? 'Woche' : m === 'r4w' ? 'R4W' : 'Monat'}
             </Button>
           ))}
         </div>
