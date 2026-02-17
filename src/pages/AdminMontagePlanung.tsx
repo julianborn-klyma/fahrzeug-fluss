@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import PlanungHeader, { type ViewMode, type RightPanel } from '@/components/planung/PlanungHeader';
 import GanttChart, { type GanttTeam, type GanttBar } from '@/components/planung/GanttChart';
 import AppointmentSidebar, { type SidebarAppointment } from '@/components/planung/AppointmentSidebar';
-import PlanungMap, { type MapMarker } from '@/components/planung/PlanungMap';
+import PlanungMap, { type MapMarker, type DistanceLine, haversineKm } from '@/components/planung/PlanungMap';
 import GanttConfirmDialog, { type BarChangeRequest } from '@/components/planung/GanttConfirmDialog';
 import GanttAppointmentDialog from '@/components/planung/GanttAppointmentDialog';
 
@@ -26,6 +26,7 @@ const AdminMontagePlanung = () => {
   const [visibleTeamIds, setVisibleTeamIds] = useState<string[] | null>(null);
   const [barChangeReq, setBarChangeReq] = useState<BarChangeRequest | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<{ appointmentId: string; jobId: string } | null>(null);
+  const [distanceAppointmentId, setDistanceAppointmentId] = useState<string | null>(null);
 
   // Calculate visible days
   const days = useMemo(() => {
@@ -78,7 +79,7 @@ const AdminMontagePlanung = () => {
     queryFn: async () => {
       const [teamsRes, profilesRes] = await Promise.all([
         supabase.from('teams').select('*').order('name'),
-        supabase.from('profiles').select('user_id, name, team_id').order('name'),
+        supabase.from('profiles').select('user_id, name, team_id, address_lat, address_lng, address_city').order('name'),
       ]);
       const teams = teamsRes.data || [];
       const profiles = profilesRes.data || [];
@@ -303,8 +304,101 @@ const AdminMontagePlanung = () => {
     },
   });
 
-  // ---- MAP MARKERS ----
-  const mapMarkers: MapMarker[] = [];
+  // ---- MAP MARKERS & DISTANCE ----
+  // Fetch all profiles for map (with coordinates)
+  const { data: allProfiles } = useQuery({
+    queryKey: ['profiles-with-coords'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('user_id, name, address_lat, address_lng, address_city');
+      return data || [];
+    },
+  });
+
+  // Fetch property coords for distance appointment
+  const { data: distanceData } = useQuery({
+    queryKey: ['distance-appointment', distanceAppointmentId],
+    enabled: !!distanceAppointmentId,
+    queryFn: async () => {
+      const { data: appt } = await supabase
+        .from('job_appointments')
+        .select('id, job_id, jobs(property_id, properties(street_address, postal_code, city))')
+        .eq('id', distanceAppointmentId!)
+        .single();
+      if (!appt) return null;
+
+      // Get assigned monteurs
+      const { data: assigns } = await supabase
+        .from('job_appointment_assignments')
+        .select('person_id, person_name')
+        .eq('job_appointment_id', distanceAppointmentId!);
+
+      const property = (appt as any).jobs?.properties;
+      if (!property) return null;
+
+      // Geocode property
+      const q = encodeURIComponent([property.street_address, property.postal_code, property.city].filter(Boolean).join(', '));
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+        const geo = await res.json();
+        if (!geo?.[0]) return null;
+        return {
+          lat: parseFloat(geo[0].lat),
+          lng: parseFloat(geo[0].lon),
+          label: [property.street_address, property.city].filter(Boolean).join(', '),
+          monteurIds: (assigns || []).map((a: any) => a.person_id),
+          monteurNames: (assigns || []).map((a: any) => a.person_name || '?'),
+        };
+      } catch { return null; }
+    },
+  });
+
+  const mapMarkers = useMemo<MapMarker[]>(() => {
+    const markers: MapMarker[] = [];
+    // All monteurs with coords
+    for (const p of (allProfiles || [])) {
+      if ((p as any).address_lat && (p as any).address_lng) {
+        markers.push({
+          id: `monteur-${p.user_id}`,
+          lat: (p as any).address_lat,
+          lng: (p as any).address_lng,
+          label: p.name || 'Monteur',
+          type: 'monteur',
+        });
+      }
+    }
+    // Distance appointment location
+    if (distanceData) {
+      markers.push({
+        id: `appt-${distanceAppointmentId}`,
+        lat: distanceData.lat,
+        lng: distanceData.lng,
+        label: distanceData.label,
+        type: 'appointment',
+      });
+    }
+    return markers;
+  }, [allProfiles, distanceData, distanceAppointmentId]);
+
+  const distanceLines = useMemo<DistanceLine[]>(() => {
+    if (!distanceData) return [];
+    const lines: DistanceLine[] = [];
+    for (let i = 0; i < distanceData.monteurIds.length; i++) {
+      const profile = (allProfiles || []).find(p => p.user_id === distanceData.monteurIds[i]);
+      if (profile && (profile as any).address_lat && (profile as any).address_lng) {
+        const km = haversineKm(
+          (profile as any).address_lat, (profile as any).address_lng,
+          distanceData.lat, distanceData.lng
+        );
+        lines.push({
+          from: [(profile as any).address_lat, (profile as any).address_lng],
+          to: [distanceData.lat, distanceData.lng],
+          label: profile.name || distanceData.monteurNames[i],
+          distanceKm: km,
+        });
+      }
+    }
+    return lines;
+  }, [distanceData, allProfiles]);
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -341,7 +435,7 @@ const AdminMontagePlanung = () => {
           {rightPanel === 'sidebar' ? (
             <AppointmentSidebar appointments={unplannedAppointments || []} />
           ) : (
-            <PlanungMap markers={mapMarkers} />
+            <PlanungMap markers={mapMarkers} distanceLines={distanceLines} />
           )}
         </div>
       </div>
@@ -369,6 +463,10 @@ const AdminMontagePlanung = () => {
         jobId={selectedAppointment?.jobId || null}
         open={!!selectedAppointment}
         onOpenChange={(open) => { if (!open) setSelectedAppointment(null); }}
+        onShowDistance={(id) => {
+          setDistanceAppointmentId(id);
+          setRightPanel('map');
+        }}
       />
     </DndContext>
   );

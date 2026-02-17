@@ -42,6 +42,11 @@ interface UserWithRoles {
   email: string;
   roles: string[];
   team_id: string | null;
+  address_street: string;
+  address_postal_code: string;
+  address_city: string;
+  address_lat: number | null;
+  address_lng: number | null;
 }
 
 type SortKey = 'name' | 'email' | 'roles' | 'team';
@@ -63,6 +68,9 @@ const SettingsUsers = () => {
   const isOfficeOnly = currentUserHasRole('office') && !currentUserHasRole('admin') && !currentUserHasRole('teamleiter');
   const [editName, setEditName] = useState('');
   const [editTeamId, setEditTeamId] = useState<string>('');
+  const [editStreet, setEditStreet] = useState('');
+  const [editPostalCode, setEditPostalCode] = useState('');
+  const [editCity, setEditCity] = useState('');
   const [teams, setTeams] = useState<Team[]>([]);
 
   // Monteur assignment to teamleiter
@@ -78,13 +86,24 @@ const SettingsUsers = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data: profiles } = await supabase.from('profiles').select('user_id, name, email, team_id');
+    const { data: profiles } = await supabase.from('profiles').select('user_id, name, email, team_id, address_street, address_postal_code, address_city, address_lat, address_lng');
     const { data: roles } = await supabase.from('user_roles').select('user_id, role');
 
     if (profiles) {
       const userMap = new Map<string, UserWithRoles>();
       for (const p of profiles) {
-        userMap.set(p.user_id, { user_id: p.user_id, name: p.name || '', email: p.email || '', roles: [], team_id: (p as any).team_id || null });
+        userMap.set(p.user_id, {
+          user_id: p.user_id,
+          name: p.name || '',
+          email: p.email || '',
+          roles: [],
+          team_id: (p as any).team_id || null,
+          address_street: (p as any).address_street || '',
+          address_postal_code: (p as any).address_postal_code || '',
+          address_city: (p as any).address_city || '',
+          address_lat: (p as any).address_lat || null,
+          address_lng: (p as any).address_lng || null,
+        });
       }
       if (roles) {
         for (const r of roles) {
@@ -114,6 +133,9 @@ const SettingsUsers = () => {
     setEditingUser(user);
     setEditName(user.name);
     setEditTeamId(user.team_id || '__none__');
+    setEditStreet(user.address_street || '');
+    setEditPostalCode(user.address_postal_code || '');
+    setEditCity(user.address_city || '');
     setSelectedRoles({
       admin: user.roles.includes('admin'),
       monteur: user.roles.includes('monteur'),
@@ -133,12 +155,44 @@ const SettingsUsers = () => {
     if (selectedRoles.teamleiter) newRoles.push('teamleiter');
     if (selectedRoles.office) newRoles.push('office');
 
-    // Update name and team if changed
+    // Update name, team, and address
     const trimmedName = editName.trim();
     const newTeamId = editTeamId === '__none__' ? null : editTeamId;
     const updates: Record<string, any> = {};
     if (trimmedName && trimmedName !== editingUser.name) updates.name = trimmedName;
     if (newTeamId !== editingUser.team_id) updates.team_id = newTeamId;
+
+    // Address fields
+    const street = editStreet.trim();
+    const postalCode = editPostalCode.trim();
+    const city = editCity.trim();
+    if (street !== (editingUser.address_street || '')) updates.address_street = street;
+    if (postalCode !== (editingUser.address_postal_code || '')) updates.address_postal_code = postalCode;
+    if (city !== (editingUser.address_city || '')) updates.address_city = city;
+
+    // Geocode if address changed
+    const addressChanged = 'address_street' in updates || 'address_postal_code' in updates || 'address_city' in updates;
+    if (addressChanged && (street || postalCode || city)) {
+      try {
+        const q = encodeURIComponent([street, postalCode, city].filter(Boolean).join(', '));
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+        const data = await res.json();
+        if (data?.[0]) {
+          updates.address_lat = parseFloat(data[0].lat);
+          updates.address_lng = parseFloat(data[0].lon);
+        } else {
+          updates.address_lat = null;
+          updates.address_lng = null;
+        }
+      } catch {
+        updates.address_lat = null;
+        updates.address_lng = null;
+      }
+    } else if (addressChanged && !street && !postalCode && !city) {
+      updates.address_lat = null;
+      updates.address_lng = null;
+    }
+
     if (Object.keys(updates).length > 0) {
       await supabase.from('profiles').update(updates).eq('user_id', userId);
     }
@@ -384,6 +438,21 @@ const SettingsUsers = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <h4 className="text-sm font-medium text-muted-foreground pt-2">Adresse</h4>
+            <div>
+              <label htmlFor="edit-street" className="text-sm font-medium">Straße & Hausnummer</label>
+              <Input id="edit-street" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} className="mt-1" placeholder="Musterstraße 1" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="edit-plz" className="text-sm font-medium">PLZ</label>
+                <Input id="edit-plz" value={editPostalCode} onChange={(e) => setEditPostalCode(e.target.value)} className="mt-1" placeholder="12345" />
+              </div>
+              <div>
+                <label htmlFor="edit-city" className="text-sm font-medium">Ort</label>
+                <Input id="edit-city" value={editCity} onChange={(e) => setEditCity(e.target.value)} className="mt-1" placeholder="Berlin" />
+              </div>
             </div>
             <h4 className="text-sm font-medium text-muted-foreground pt-2">Rollen</h4>
             {!isOfficeOnly && (
