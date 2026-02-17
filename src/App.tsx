@@ -38,6 +38,7 @@ const AdminMontageKunden = lazyRetry(() => import("./pages/AdminMontageKunden"))
 const AdminMontageKundenDetail = lazyRetry(() => import("./pages/AdminMontageKundenDetail"));
 const AdminMontageAuftraege = lazyRetry(() => import("./pages/AdminMontageAuftraege"));
 const AdminMontageTermine = lazyRetry(() => import("./pages/AdminMontageTermine"));
+const AdminMontagePlanung = lazyRetry(() => import("./pages/AdminMontagePlanung"));
 const AdminJobDetail = lazyRetry(() => import("./pages/AdminJobDetail"));
 const MonteurMontage = lazyRetry(() => import("./pages/MonteurMontage"));
 const MonteurJobDetail = lazyRetry(() => import("./pages/MonteurJobDetail"));
@@ -95,7 +96,7 @@ const App = () => (
                     <Route path="auftraege" element={<AdminMontageAuftraege />} />
                     <Route path="kunden" element={<AdminMontageKunden />} />
                     <Route path="kunden/:id" element={<AdminMontageKundenDetail />} />
-                    <Route path="planung" element={<div className="p-8 text-center text-muted-foreground">Planung – Kommt bald</div>} />
+                    <Route path="planung" element={<AdminMontagePlanung />} />
                     <Route path="termine" element={<AdminMontageTermine />} />
                     <Route path="job/:id" element={<AdminJobDetail />} />
                   </Route>

@@ -42,6 +42,23 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
+    /* Trade colors */
+    --trade-shk: 210 70% 92%;
+    --trade-shk-border: 210 60% 70%;
+    --trade-shk-text: 210 60% 35%;
+    --trade-elektro: 45 80% 90%;
+    --trade-elektro-border: 45 70% 60%;
+    --trade-elektro-text: 45 60% 30%;
+    --trade-fundament: 25 80% 92%;
+    --trade-fundament-border: 25 70% 65%;
+    --trade-fundament-text: 25 60% 35%;
+    --trade-dach: 140 55% 90%;
+    --trade-dach-border: 140 45% 55%;
+    --trade-dach-text: 140 45% 30%;
+    --trade-gala: 280 55% 92%;
+    --trade-gala-border: 280 45% 65%;
+    --trade-gala-text: 280 45% 35%;
+
     --badge-lager: 30 80% 95%;
     --badge-lager-text: 30 60% 40%;
     --badge-bestellung: 152 50% 93%;
