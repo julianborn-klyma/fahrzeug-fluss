@@ -1,52 +1,45 @@
 
-# Checklisten im Monteur-Auftrag verbessern
+# Checklisten nativ im Tab anzeigen (wie in den Screenshots)
 
-## Problem
-Die Checklisten-Ansicht in der Monteur-App zeigt aktuell nur einfache Checkboxen. Die bereits existierende, umfangreiche `ChecklistDetailDialog`-Komponente (mit Foto-Upload, Textfeldern, aufklappbaren Gruppen, Fortschrittsanzeige) wird nicht genutzt. Ausserdem fehlt eine Funktion zum Malen/Annotieren auf Fotos.
+## Aktueller Zustand
+Der Checklisten-Tab zeigt Karten mit Fortschrittsbalken. Ein Klick oeffnet einen Dialog (`ChecklistDetailDialog`). Der Nutzer moechte stattdessen die Schritte direkt im Tab sehen -- wie in den Screenshots: eine flache Liste mit Status-Icons und Klick auf einen Schritt oeffnet die Detail-Ansicht (Kommentar + Foto).
 
-## Loesung
+## Geplante Aenderungen
 
-### 1. Checklisten-Tab mit ChecklistDetailDialog verbinden
-Die flache Checkbox-Liste im `MonteurJobDetail.tsx` wird durch eine Karten-Ansicht ersetzt, die pro Checkliste den Fortschritt anzeigt. Beim Antippen oeffnet sich der bestehende `ChecklistDetailDialog`, der bereits Gruppen, Foto-Upload, Textfelder und Fortschrittsbalken unterstuetzt.
+### 1. Checklisten-Tab umbauen (`MonteurJobDetail.tsx`)
+- Gruppen werden als aufklappbare Sektionen (`Collapsible`) direkt im Tab angezeigt
+- Jeder Schritt wird als Zeile dargestellt mit:
+  - **Kein Icon**: Schritt offen (nicht erledigt, nicht verpflichtend)
+  - **Gruener Haken**: Schritt erledigt (`is_completed = true`)
+  - **Rotes Ausrufezeichen**: Verpflichtend aber noch offen (`is_required = true` und `is_completed = false`)
+- Foto-Thumbnail (kleines Bild-Icon oder Vorschau) links, wenn der Schritt vom Typ `photo` ist
+- Untertitel "Zu erledigen" / "Erledigt" unter jedem Schritt-Titel
+- Klick auf einen Schritt oeffnet eine **Schritt-Detail-Ansicht** (neuer Dialog oder Fullscreen-Sheet)
 
-### 2. Foto-Annotation (auf Bildern malen)
-Eine neue Komponente `PhotoAnnotationDialog` wird erstellt, die ein Canvas ueber das Foto legt. Der Monteur kann mit dem Finger/Maus Linien, Kreise oder Pfeile zeichnen (Freihand-Zeichnung). Das annotierte Bild wird als neues Bild gespeichert und ersetzt/ergaenzt das Original.
+### 2. Neue Komponente: `ChecklistStepDetailSheet` (in `MonteurJobDetail.tsx` oder eigene Datei)
+- Wird als Sheet/Dialog geoeffnet wenn man auf einen Schritt tippt
+- Zeigt: Schritt-Titel, Typ-Label ("Aufgabe"), optionales Kommentar-Feld, Foto-Upload-Button (Kamera-Icon unten rechts wie im Screenshot)
+- Fortschrittsbalken unten mit "Zurueck" / "Weiter" Navigation zwischen Schritten
+- Foto-Upload mit `capture="environment"` fuer Kamera
+- Annotation (Malen auf Foto) ueber bestehendes `PhotoAnnotationDialog`
+
+### 3. Bestehende `ChecklistDetailDialog`-Logik wiederverwenden
+- Die Upload-, Toggle-, Text- und Annotations-Logik aus `ChecklistDetailDialog` wird in den neuen Flow integriert
+- Der bestehende Dialog bleibt fuer die Admin-Ansicht erhalten
 
 ## Technische Details
 
-### Datei-Aenderungen
+### `MonteurJobDetail.tsx`
+- Checklisten-Tab: Statt der Karten-Liste werden Gruppen mit `Collapsible` angezeigt
+- Jeder Schritt ist eine klickbare Zeile mit Status-Icon (Check/AlertCircle/leer)
+- State: `selectedStep` fuer die Detail-Ansicht
+- Fortschrittsbalken oben pro Checkliste
 
-**`src/pages/MonteurJobDetail.tsx`**
-- Import von `ChecklistDetailDialog` hinzufuegen
-- State fuer `selectedChecklistId` hinzufuegen
-- Im Checklisten-Tab: Statt flacher Checkbox-Liste eine Karten-Uebersicht mit Fortschrittsbalken pro Checkliste
-- Klick auf Checkliste oeffnet `ChecklistDetailDialog`
-
-**`src/components/montage/PhotoAnnotationDialog.tsx`** (neue Datei)
-- Fullscreen-Dialog mit HTML5 Canvas ueber dem Foto
-- Freihand-Zeichenmodus mit konfigurierbarer Farbe (rot, blau, schwarz, weiss) und Strichstaerke
-- "Rueckgaengig"-Funktion
-- "Speichern"-Button: Canvas wird als Bild exportiert und in den Storage hochgeladen
-- Ergebnis-URL wird per Callback zurueckgegeben
-
-**`src/components/montage/ChecklistDetailDialog.tsx`**
-- Integration der `PhotoAnnotationDialog`: Neuer Button "Bearbeiten" (Stift-Icon) auf jedem Foto im Grid
-- Klick oeffnet das Foto im Annotations-Editor
-- Nach dem Speichern wird die alte URL durch die annotierte ersetzt
-- Kamera-Capture hinzufuegen: `capture="environment"` am File-Input fuer direkte Kamera-Nutzung auf dem Handy
-
-### Ablauf Foto-Annotation
-
-```text
-Foto im Grid antippen
-  --> PhotoAnnotationDialog oeffnet sich
-  --> Canvas-Overlay ueber dem Bild
-  --> Farbe/Strichstaerke waehlen
-  --> Freihand zeichnen (Touch + Maus)
-  --> "Rueckgaengig" oder "Speichern"
-  --> Annotiertes Bild wird hochgeladen
-  --> URL im Checklist-Step aktualisiert
-```
+### Neue Komponente oder Inline-Sheet fuer Schritt-Details
+- Sheet/Dialog mit Schritt-Titel, Kommentar-Textarea, Kamera-Button
+- "Zurueck"/"Weiter" Buttons am unteren Rand navigieren durch die Schritte der aktuellen Checkliste
+- Gruener Fortschrittsbalken zwischen den Buttons
+- Upload-Logik aus `ChecklistDetailDialog` wird hierhin uebernommen (Supabase Storage Upload, signed URLs)
 
 ### Keine Datenbank-Aenderungen noetig
-Die bestehenden Felder `photo_urls` und `photo_url` in `job_checklist_steps` reichen aus. Annotierte Bilder werden als neue Dateien im `job-documents`-Bucket gespeichert.
+Alle benoetigten Felder (`is_completed`, `is_required`, `photo_urls`, `text_value`, `step_type`, `parent_step_id`) existieren bereits in `job_checklist_steps`.
