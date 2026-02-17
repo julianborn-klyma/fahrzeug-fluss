@@ -424,7 +424,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                           top: topOffset,
                           height: barH,
                         }}
-                        title={`${bar.type_name} – ${bar.job_title} (#${bar.job_number})`}
+                        title={`${bar.job_title}_${bar.type_name}`}
                       >
                         {/* Move handle (entire bar) */}
                         <div
@@ -437,10 +437,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                         />
                         {/* Content */}
                         <span className="font-medium truncate relative pointer-events-none">
-                          {bar.type_name}
-                        </span>
-                        <span className="opacity-60 shrink-0 relative pointer-events-none">
-                          #{bar.job_number}
+                          {bar.job_title}_{bar.type_name}
                         </span>
                         {/* Resize handle (right edge) */}
                         <div
