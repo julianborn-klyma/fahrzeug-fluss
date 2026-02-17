@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -108,19 +108,46 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
         .select()
         .single();
       if (error) throw error;
-      const steps = (template.checklist_template_steps || [])
-        .sort((a: any, b: any) => a.order_index - b.order_index)
-        .map((s: any) => ({
-          checklist_id: cl.id,
-          template_step_id: s.id,
-          title: s.title,
-          step_type: s.step_type,
-          order_index: s.order_index,
-          is_required: s.is_required,
-        }));
-      if (steps.length > 0) {
-        await supabase.from('job_checklist_steps').insert(steps as any);
+      
+      const templateSteps = (template.checklist_template_steps || [])
+        .sort((a: any, b: any) => a.order_index - b.order_index);
+      
+      // First pass: insert all steps without parent_step_id
+      const stepsToInsert = templateSteps.map((s: any) => ({
+        checklist_id: cl.id,
+        template_step_id: s.id,
+        title: s.title,
+        step_type: s.step_type,
+        order_index: s.order_index,
+        is_required: s.is_required,
+      }));
+      
+      if (stepsToInsert.length > 0) {
+        const { data: insertedSteps } = await supabase
+          .from('job_checklist_steps')
+          .insert(stepsToInsert as any)
+          .select();
+        
+        // Second pass: update parent_step_id mapping
+        if (insertedSteps) {
+          const templateToJobMap: Record<string, string> = {};
+          for (const step of insertedSteps) {
+            if ((step as any).template_step_id) {
+              templateToJobMap[(step as any).template_step_id] = step.id;
+            }
+          }
+          
+          // Update children with correct parent_step_id
+          for (const ts of templateSteps) {
+            if (ts.parent_step_id && templateToJobMap[ts.parent_step_id] && templateToJobMap[ts.id]) {
+              await supabase.from('job_checklist_steps')
+                .update({ parent_step_id: templateToJobMap[ts.parent_step_id] } as any)
+                .eq('id', templateToJobMap[ts.id]);
+            }
+          }
+        }
       }
+      
       queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
       setShowAddChecklist(false);
       setSelectedTemplateId('');
@@ -326,7 +353,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                               <span className="text-sm font-medium">{cl.name}</span>
                               {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <span className="text-xs text-muted-foreground font-medium">{clDone}/{clTotal}</span>
                               <Button
                                 variant="ghost"
@@ -335,6 +362,22 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                                 onClick={(e) => { e.stopPropagation(); setViewChecklist(cl); }}
                               >
                                 <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm('Checkliste wirklich löschen?')) return;
+                                  try {
+                                    await supabase.from('job_checklists').delete().eq('id', cl.id);
+                                    queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+                                    toast.success('Checkliste gelöscht.');
+                                  } catch { toast.error('Fehler.'); }
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>

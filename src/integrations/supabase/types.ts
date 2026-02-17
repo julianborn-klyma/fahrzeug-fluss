@@ -561,6 +561,7 @@ export type Database = {
           is_completed: boolean
           is_required: boolean
           order_index: number
+          parent_step_id: string | null
           photo_url: string | null
           step_type: string
           template_step_id: string | null
@@ -576,6 +577,7 @@ export type Database = {
           is_completed?: boolean
           is_required?: boolean
           order_index?: number
+          parent_step_id?: string | null
           photo_url?: string | null
           step_type?: string
           template_step_id?: string | null
@@ -591,6 +593,7 @@ export type Database = {
           is_completed?: boolean
           is_required?: boolean
           order_index?: number
+          parent_step_id?: string | null
           photo_url?: string | null
           step_type?: string
           template_step_id?: string | null
@@ -603,6 +606,13 @@ export type Database = {
             columns: ["checklist_id"]
             isOneToOne: false
             referencedRelation: "job_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_checklist_steps_parent_step_id_fkey"
+            columns: ["parent_step_id"]
+            isOneToOne: false
+            referencedRelation: "job_checklist_steps"
             referencedColumns: ["id"]
           },
           {
