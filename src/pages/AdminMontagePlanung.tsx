@@ -32,9 +32,10 @@ const AdminMontagePlanung = () => {
       start = startOfISOWeek(currentDate);
       end = endOfISOWeek(currentDate);
     } else if (viewMode === 'r4w') {
-      // Rolling 4 weeks: last week + this week + next 2 weeks
-      start = startOfISOWeek(subWeeks(currentDate, 1));
-      end = endOfISOWeek(addWeeks(currentDate, 2));
+      // Rolling 4 weeks: last week, this week, next 2 weeks (4 full ISO weeks)
+      const thisWeekStart = startOfISOWeek(currentDate);
+      start = subWeeks(thisWeekStart, 1);
+      end = endOfISOWeek(addWeeks(thisWeekStart, 2));
     } else {
       start = startOfMonth(currentDate);
       end = endOfMonth(currentDate);
