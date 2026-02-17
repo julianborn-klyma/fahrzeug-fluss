@@ -539,6 +539,7 @@ export type Database = {
           end_date: string | null
           field_values: Json
           id: string
+          is_internal: boolean | null
           job_id: string
           notes: string
           start_date: string | null
@@ -550,6 +551,7 @@ export type Database = {
           end_date?: string | null
           field_values?: Json
           id?: string
+          is_internal?: boolean | null
           job_id: string
           notes?: string
           start_date?: string | null
@@ -561,6 +563,7 @@ export type Database = {
           end_date?: string | null
           field_values?: Json
           id?: string
+          is_internal?: boolean | null
           job_id?: string
           notes?: string
           start_date?: string | null
