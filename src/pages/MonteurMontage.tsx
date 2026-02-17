@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useAssignedJobs } from '@/hooks/useJobs';
 import { useMonteurAppointments } from '@/hooks/useTradeAppointments';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
+import SyncStatusBar from '@/components/SyncStatusBar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MapPin, Calendar, ChevronLeft, ChevronRight, LogOut, ArrowRightLeft } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
 import {
   format, addDays, subDays, isToday, isSameDay, startOfDay,
@@ -15,10 +18,23 @@ import {
 import { de } from 'date-fns/locale';
 
 const MonteurMontage = () => {
-  const { user } = useAuth();
+  const { user, signOut, hasRole } = useAuth();
   const navigate = useNavigate();
   const { data: jobs, isLoading } = useAssignedJobs(user?.id);
   const { data: appointments } = useMonteurAppointments(user?.id);
+  const { isOnline, pendingCount, lastSyncedAt, syncing, doSync, markSynced } = useOfflineSync(async (changes) => {
+    console.log('[Sync] Syncing changes:', changes);
+  });
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const handleSync = () => {
+    doSync();
+    markSynced();
+  };
 
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
 
@@ -31,11 +47,41 @@ const MonteurMontage = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Briefcase className="h-5 w-5" /> Meine Montage
-        </h1>
+      <header className="sticky top-0 z-10 border-b bg-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Meine Montage</h1>
+            <p className="text-sm text-muted-foreground">Hallo, {user?.name || user?.email}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            {hasRole('admin') && hasRole('monteur') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
+                    <ArrowRightLeft className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Zur Admin-App</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Abmelden</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
       </header>
+      <SyncStatusBar
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        lastSyncedAt={lastSyncedAt}
+        syncing={syncing}
+        onSync={handleSync}
+      />
 
       {/* Date navigator – always visible */}
       <div className="border-b bg-card px-4 py-2 flex items-center justify-between">
