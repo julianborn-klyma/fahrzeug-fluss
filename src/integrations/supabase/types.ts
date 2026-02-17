@@ -1403,6 +1403,11 @@ export type Database = {
         | "verplant"
         | "durchgefuehrt"
         | "abgerechnet"
+        | "neu"
+        | "in_planung"
+        | "in_umsetzung"
+        | "nacharbeiten"
+        | "abgeschlossen"
       trade_type: "SHK" | "Elektro" | "Fundament" | "Dach" | "GaLa"
     }
     CompositeTypes: {
@@ -1538,6 +1543,11 @@ export const Constants = {
         "verplant",
         "durchgefuehrt",
         "abgerechnet",
+        "neu",
+        "in_planung",
+        "in_umsetzung",
+        "nacharbeiten",
+        "abgeschlossen",
       ],
       trade_type: ["SHK", "Elektro", "Fundament", "Dach", "GaLa"],
     },
