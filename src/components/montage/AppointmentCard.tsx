@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import {
   Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2,
   CheckSquare, Plus, Eye, Trash2, X, Maximize2,
@@ -56,6 +57,19 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const fieldValues = a.field_values || {};
   const assignments = a.assignments || [];
   const checklists: any[] = a.checklists || [];
+  
+  // Intern/Extern: override per appointment or fallback to type default
+  const isInternal = a.is_internal !== null && a.is_internal !== undefined
+    ? a.is_internal
+    : (a.appointment_type?.is_internal ?? false);
+
+  const toggleInternal = async (val: boolean) => {
+    try {
+      await supabase.from('job_appointments').update({ is_internal: val } as any).eq('id', a.id);
+      queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+      toast.success(val ? 'Auf Intern gesetzt.' : 'Auf Extern gesetzt.');
+    } catch { toast.error('Fehler.'); }
+  };
 
   const { data: checklistTemplates } = useQuery({
     queryKey: ['checklist-templates-for-add'],
@@ -229,7 +243,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
 
       {/* Badges: Trade / Intern */}
       <div className="flex items-center gap-1 shrink-0">
-        {a.appointment_type?.is_internal ? (
+        {isInternal ? (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Intern</Badge>
         ) : (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">Extern</Badge>
@@ -448,18 +462,18 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
     <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             {a.appointment_type?.name || 'Termin'}
-            {a.appointment_type?.is_internal ? (
-              <Badge variant="secondary" className="text-xs">Intern</Badge>
-            ) : (
-              <Badge variant="outline" className="text-xs">Extern</Badge>
-            )}
             {a.appointment_type?.trade && (
               <Badge variant="outline" className="text-xs">{TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}</Badge>
             )}
             <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-xs ml-auto">{a.status}</Badge>
           </DialogTitle>
+          <div className="flex items-center gap-2 mt-1">
+            <Label className="text-xs text-muted-foreground">Extern</Label>
+            <Switch checked={isInternal} onCheckedChange={toggleInternal} />
+            <Label className="text-xs text-muted-foreground">Intern</Label>
+          </div>
         </DialogHeader>
 
         <Tabs defaultValue="details" className="mt-2">
