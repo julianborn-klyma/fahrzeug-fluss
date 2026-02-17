@@ -1,28 +1,49 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CheckSquare, Type, Camera, FolderOpen, ChevronRight, Pencil, Check, X, Upload, Trash2, ImageIcon } from 'lucide-react';
+import { CheckSquare, Type, Camera, FolderOpen, ChevronRight, Pencil, Check, X, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 interface Props {
-  checklist: any;
+  checklistId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange }) => {
+const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChange }) => {
   const queryClient = useQueryClient();
-  const steps: any[] = checklist?.steps || [];
   const [editingStep, setEditingStep] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const changeFileInputRef = useRef<HTMLInputElement>(null);
+  const [changingStepId, setChangingStepId] = useState<string | null>(null);
+
+  // Fetch checklist with steps live from DB
+  const { data: checklist, refetch } = useQuery({
+    queryKey: ['checklist-detail', checklistId],
+    enabled: !!checklistId && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_checklists')
+        .select('*, job_checklist_steps(*)')
+        .eq('id', checklistId!)
+        .single();
+      if (error) throw error;
+      return {
+        ...data,
+        steps: ((data as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
+      };
+    },
+  });
+
+  const steps: any[] = checklist?.steps || [];
 
   const topLevel = steps.filter(s => !s.parent_step_id);
   const childrenOf = (parentId: string) => steps.filter(s => s.parent_step_id === parentId);
@@ -32,6 +53,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
   const percent = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
 
   const invalidate = () => {
+    refetch();
     queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
     queryClient.invalidateQueries({ queryKey: ['job-checklists'] });
   };
@@ -59,16 +81,14 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
   const handlePhotoUpload = async (stepId: string, file: File) => {
     setUploadingStepId(stepId);
     try {
-      const filePath = `checklists/${checklist.id}/${stepId}/${Date.now()}_${file.name}`;
+      const filePath = `checklists/${checklist?.id}/${stepId}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from('job-documents').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from('job-documents').getPublicUrl(filePath);
-      // Use signed URL since bucket is private
-      const { data: signedData } = await supabase.storage.from('job-documents').createSignedUrl(filePath, 31536000); // 1 year
+      const { data: signedData } = await supabase.storage.from('job-documents').createSignedUrl(filePath, 31536000);
 
       await supabase.from('job_checklist_steps').update({
-        photo_url: signedData?.signedUrl || urlData.publicUrl,
+        photo_url: signedData?.signedUrl || '',
         is_completed: true,
         completed_at: new Date().toISOString(),
       } as any).eq('id', stepId);
@@ -82,15 +102,43 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
     }
   };
 
+  const handlePhotoChange = async (stepId: string, file: File, oldPhotoUrl: string) => {
+    setUploadingStepId(stepId);
+    try {
+      // Delete old file
+      const pathMatch = oldPhotoUrl.match(/job-documents\/(.+?)(\?|$)/);
+      if (pathMatch) {
+        await supabase.storage.from('job-documents').remove([decodeURIComponent(pathMatch[1])]);
+      }
+      // Upload new
+      const filePath = `checklists/${checklist?.id}/${stepId}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('job-documents').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: signedData } = await supabase.storage.from('job-documents').createSignedUrl(filePath, 31536000);
+
+      await supabase.from('job_checklist_steps').update({
+        photo_url: signedData?.signedUrl || '',
+      } as any).eq('id', stepId);
+
+      invalidate();
+      toast.success('Foto geändert.');
+    } catch {
+      toast.error('Fehler beim Ändern.');
+    } finally {
+      setUploadingStepId(null);
+      setChangingStepId(null);
+    }
+  };
+
   const handlePhotoDelete = async (stepId: string, photoUrl: string) => {
     try {
-      // Extract path from signed URL
       const pathMatch = photoUrl.match(/job-documents\/(.+?)(\?|$)/);
       if (pathMatch) {
         await supabase.storage.from('job-documents').remove([decodeURIComponent(pathMatch[1])]);
       }
       await supabase.from('job_checklist_steps').update({
-        photo_url: null,
+        photo_url: '',
         is_completed: false,
         completed_at: null,
       } as any).eq('id', stepId);
@@ -200,20 +248,31 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
           {/* Photo */}
           {step.step_type === 'photo' && (
             <div className="mt-1.5">
-              {step.photo_url ? (
+              {step.photo_url && step.photo_url.length > 0 ? (
                 <div className="space-y-1.5">
-                  <img src={step.photo_url} alt={step.title} className="rounded max-h-32 object-cover border" />
+                  <img
+                    src={step.photo_url}
+                    alt={step.title}
+                    className="rounded max-h-48 w-auto object-contain border cursor-pointer"
+                    onClick={() => window.open(step.photo_url, '_blank')}
+                  />
                   <div className="flex gap-1">
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-6 text-xs gap-1"
+                      disabled={isUploading}
                       onClick={() => {
-                        fileInputRef.current?.setAttribute('data-step-id', step.id);
-                        fileInputRef.current?.click();
+                        setChangingStepId(step.id);
+                        changeFileInputRef.current?.click();
                       }}
                     >
-                      <Pencil className="h-3 w-3" /> Ändern
+                      {isUploading ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      ) : (
+                        <Pencil className="h-3 w-3" />
+                      )}
+                      Ändern
                     </Button>
                     <Button
                       variant="outline"
@@ -272,7 +331,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
           </DialogTitle>
         </DialogHeader>
 
-        {/* Hidden file input for photo uploads */}
+        {/* Hidden file input for new photo uploads */}
         <input
           type="file"
           ref={fileInputRef}
@@ -282,6 +341,26 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklist, open, onOpenChange 
             const file = e.target.files?.[0];
             const stepId = fileInputRef.current?.getAttribute('data-step-id');
             if (file && stepId) handlePhotoUpload(stepId, file);
+            e.target.value = '';
+          }}
+        />
+
+        {/* Hidden file input for changing existing photos */}
+        <input
+          type="file"
+          ref={changeFileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && changingStepId) {
+              const step = steps.find(s => s.id === changingStepId);
+              if (step?.photo_url) {
+                handlePhotoChange(changingStepId, file, step.photo_url);
+              } else {
+                handlePhotoUpload(changingStepId, file);
+              }
+            }
             e.target.value = '';
           }}
         />
