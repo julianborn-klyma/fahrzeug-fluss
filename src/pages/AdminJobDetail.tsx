@@ -259,7 +259,7 @@ const AdminJobDetail = () => {
               <p className="text-sm text-muted-foreground py-4">Keine Termine angelegt.</p>
             ) : (
               appointments.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} jobId={id} />
+                <AppointmentCard key={a.id} appointment={a} jobId={id} jobDocuments={documents} />
               ))
             )}
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setShowAddAppointment(true)}>

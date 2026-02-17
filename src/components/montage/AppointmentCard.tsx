@@ -29,6 +29,8 @@ import AppointmentStatusTimeline from './AppointmentStatusTimeline';
 interface AppointmentCardProps {
   appointment: any;
   jobId?: string;
+  /** All documents uploaded for this job (used for completeness check) */
+  jobDocuments?: any[];
 }
 
 import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER, type AppointmentStatus } from '@/types/montage';
@@ -42,7 +44,7 @@ const STATUS_VARIANTS: Record<AppointmentStatus, 'default' | 'secondary' | 'outl
   abgenommen: 'default',
 };
 
-const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
+const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: AppointmentCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [showAddChecklist, setShowAddChecklist] = useState(false);
@@ -62,7 +64,14 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const fieldValues = a.field_values || {};
   const assignments = a.assignments || [];
   const checklists: any[] = a.checklists || [];
-  
+
+  // Check if appointment has missing required documents or no checklists
+  const reqDocs = a.appointment_type?.required_documents || [];
+  const hasMissingDocs = reqDocs.some((rd: any) => !jobDocuments.some((d: any) => d.document_type_id === rd.document_type_id));
+  const hasMissingChecklists = checklists.length === 0;
+  const requiredFieldsMissing = fields.some((f: any) => f.is_required && !fieldValues[f.id]?.toString().trim());
+  const isIncomplete = hasMissingDocs || hasMissingChecklists || requiredFieldsMissing;
+
   // Intern/Extern: override per appointment or fallback to type default
   const isInternal = a.is_internal !== null && a.is_internal !== undefined
     ? a.is_internal
@@ -288,6 +297,14 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
           <CheckSquare className="h-3 w-3 text-muted-foreground" />
           <Progress value={checklistPercent} className="h-1.5 w-16" />
           <span className="text-[10px] text-muted-foreground font-medium">{doneSteps}/{totalSteps}</span>
+        </div>
+      )}
+
+      {/* Incomplete warning */}
+      {isIncomplete && (
+        <div className="flex items-center gap-1 text-destructive shrink-0" title="Termin unvollständig">
+          <AlertCircle className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-medium hidden lg:inline">Unvollständig</span>
         </div>
       )}
 
