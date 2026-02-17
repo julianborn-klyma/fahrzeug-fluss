@@ -30,8 +30,10 @@ interface Props {
   teams: GanttTeam[];
   days: Date[];
   bars: GanttBar[];
-  onBarClick?: (jobId: string) => void;
+  onBarClick?: (bar: GanttBar) => void;
   onBarChange?: (req: BarChangeRequest) => void;
+  workDayStart?: string;
+  workDayEnd?: string;
 }
 
 const TRADE_CLASSES: Record<string, string> = {
@@ -84,7 +86,7 @@ function assignLanes(bars: { startIdx: number; endIdx: number; bar: GanttBar }[]
   return { lanes, maxLanes };
 }
 
-const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
+const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart = '08:00', workDayEnd = '17:00' }: Props) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const totalDays = days.length;
   const viewStart = days[0];
@@ -100,6 +102,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
     personId: string;
     personName: string;
   } | null>(null);
+  const wasDragged = useRef(false);
   const [dragPreview, setDragPreview] = useState<{
     barId: string;
     left: string;
@@ -107,6 +110,12 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
   } | null>(null);
 
   const getPersonBars = (personId: string) => bars.filter(b => b.person_id === personId);
+
+  // Parse work day hours
+  const parseTime = (t: string) => { const [h, m] = t.split(':').map(Number); return h + m / 60; };
+  const dayStartHour = parseTime(workDayStart);
+  const dayEndHour = parseTime(workDayEnd);
+  const dayHours = Math.max(1, dayEndHour - dayStartHour);
 
   const getBarIndices = useCallback((bar: GanttBar) => {
     const start = startOfDay(new Date(bar.start_date));
@@ -117,9 +126,16 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
     return { startIdx, endIdx };
   }, [viewStart, totalDays]);
 
-  const idxToPosition = useCallback((startIdx: number, endIdx: number) => ({
-    left: `${(startIdx / totalDays) * 100}%`,
-    width: `${(Math.max(1, endIdx - startIdx + 1) / totalDays) * 100}%`,
+  /** Get fractional position within a day based on time (0..1) */
+  const getTimeFraction = useCallback((dateStr: string) => {
+    const d = new Date(dateStr);
+    const h = d.getHours() + d.getMinutes() / 60;
+    return Math.max(0, Math.min(1, (h - dayStartHour) / dayHours));
+  }, [dayStartHour, dayHours]);
+
+  const idxToPosition = useCallback((startIdx: number, endIdx: number, startFrac = 0, endFrac = 1) => ({
+    left: `${((startIdx + startFrac) / totalDays) * 100}%`,
+    width: `${((endIdx - startIdx + endFrac - startFrac) / totalDays) * 100}%`,
   }), [totalDays]);
 
   // Get day width from a row element
@@ -156,6 +172,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
     const indices = getBarIndices(bar);
     if (!indices) return;
 
+    wasDragged.current = false;
     dragRef.current = {
       bar,
       mode,
@@ -169,6 +186,8 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
 
     const handleMouseMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
+      const dist = Math.abs(ev.clientX - dragRef.current.startX);
+      if (dist > 3) wasDragged.current = true;
       const d = dragRef.current;
       const dayW = getDayWidth(d.rowEl);
       const deltaIdx = Math.round((ev.clientX - d.startX) / dayW);
@@ -375,10 +394,12 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
                   })}
                   {/* Appointment bars with lane stacking */}
                   {lanes.map(({ bar, lane }) => {
-                    const pos = idxToPosition(
-                      Math.max(0, differenceInCalendarDays(startOfDay(new Date(bar.start_date)), viewStart)),
-                      Math.min(totalDays - 1, differenceInCalendarDays(bar.end_date ? startOfDay(new Date(bar.end_date)) : startOfDay(new Date(bar.start_date)), viewStart)),
-                    );
+                    const barStartIdx = Math.max(0, differenceInCalendarDays(startOfDay(new Date(bar.start_date)), viewStart));
+                    const barEndIdx = Math.min(totalDays - 1, differenceInCalendarDays(bar.end_date ? startOfDay(new Date(bar.end_date)) : startOfDay(new Date(bar.start_date)), viewStart));
+                    const isSingleDay = barStartIdx === barEndIdx;
+                    const startFrac = isSingleDay || barStartIdx === differenceInCalendarDays(startOfDay(new Date(bar.start_date)), viewStart) ? getTimeFraction(bar.start_date) : 0;
+                    const endFrac = isSingleDay || barEndIdx === differenceInCalendarDays(bar.end_date ? startOfDay(new Date(bar.end_date)) : startOfDay(new Date(bar.start_date)), viewStart) ? getTimeFraction(bar.end_date || bar.start_date) : 1;
+                    const pos = idxToPosition(barStartIdx, barEndIdx, startFrac, endFrac);
                     const tradeClass = TRADE_CLASSES[bar.trade || ''] || 'bg-secondary border-border text-foreground';
 
                     const isPreview = dragPreview?.barId === bar.id;
@@ -412,7 +433,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange }: Props) => {
                             const gridEl = (e.currentTarget.closest('[data-grid-row]') as HTMLElement);
                             if (gridEl) handleBarMouseDown(e, bar, 'move', gridEl, member.user_id, member.name);
                           }}
-                          onDoubleClick={() => onBarClick?.(bar.job_id)}
+                          onClick={() => { if (!wasDragged.current) onBarClick?.(bar); }}
                         />
                         {/* Content */}
                         <span className="font-medium truncate relative pointer-events-none">

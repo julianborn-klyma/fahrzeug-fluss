@@ -194,6 +194,8 @@ export type Database = {
           weight_reliability: number
           weight_speed: number
           weight_team: number
+          work_day_end: string
+          work_day_start: string
         }
         Insert: {
           half_year_bonus_pool?: number
@@ -210,6 +212,8 @@ export type Database = {
           weight_reliability?: number
           weight_speed?: number
           weight_team?: number
+          work_day_end?: string
+          work_day_start?: string
         }
         Update: {
           half_year_bonus_pool?: number
@@ -226,6 +230,8 @@ export type Database = {
           weight_reliability?: number
           weight_speed?: number
           weight_team?: number
+          work_day_end?: string
+          work_day_start?: string
         }
         Relationships: []
       }

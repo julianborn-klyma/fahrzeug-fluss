@@ -13,6 +13,7 @@ import GanttChart, { type GanttTeam, type GanttBar } from '@/components/planung/
 import AppointmentSidebar, { type SidebarAppointment } from '@/components/planung/AppointmentSidebar';
 import PlanungMap, { type MapMarker } from '@/components/planung/PlanungMap';
 import GanttConfirmDialog, { type BarChangeRequest } from '@/components/planung/GanttConfirmDialog';
+import GanttAppointmentDialog from '@/components/planung/GanttAppointmentDialog';
 
 const AdminMontagePlanung = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const AdminMontagePlanung = () => {
   const [activeDrag, setActiveDrag] = useState<any>(null);
   const [visibleTeamIds, setVisibleTeamIds] = useState<string[] | null>(null);
   const [barChangeReq, setBarChangeReq] = useState<BarChangeRequest | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<{ appointmentId: string; jobId: string } | null>(null);
 
   // Calculate visible days
   const days = useMemo(() => {
@@ -263,6 +265,15 @@ const AdminMontagePlanung = () => {
     }
   }, [queryClient]);
 
+  // Work day settings
+  const { data: workDaySettings } = useQuery({
+    queryKey: ['work-day-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('bonus_settings').select('work_day_start, work_day_end').limit(1).single();
+      return data as { work_day_start: string; work_day_end: string } | null;
+    },
+  });
+
   // ---- MAP MARKERS ----
   const mapMarkers: MapMarker[] = [];
 
@@ -292,8 +303,10 @@ const AdminMontagePlanung = () => {
             )}
             days={days}
             bars={scheduledAppointments || []}
-            onBarClick={(jobId) => navigate(`/admin/montage/job/${jobId}`)}
+            onBarClick={(bar) => setSelectedAppointment({ appointmentId: bar.appointment_id, jobId: bar.job_id })}
             onBarChange={handleBarChange}
+            workDayStart={workDaySettings?.work_day_start || '08:00'}
+            workDayEnd={workDaySettings?.work_day_end || '17:00'}
           />
 
           {rightPanel === 'sidebar' ? (
@@ -319,6 +332,14 @@ const AdminMontagePlanung = () => {
         request={barChangeReq}
         onConfirm={handleConfirmBarChange}
         onCancel={() => setBarChangeReq(null)}
+      />
+
+      {/* Appointment detail dialog from Gantt click */}
+      <GanttAppointmentDialog
+        appointmentId={selectedAppointment?.appointmentId || null}
+        jobId={selectedAppointment?.jobId || null}
+        open={!!selectedAppointment}
+        onOpenChange={(open) => { if (!open) setSelectedAppointment(null); }}
       />
     </DndContext>
   );

@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { FolderKanban, Calendar, ClipboardList } from 'lucide-react';
+import { FolderKanban, Calendar, ClipboardList, Settings2 } from 'lucide-react';
 import SettingsProjektarten from './SettingsProjektarten';
 import SettingsAppointmentTypes from './SettingsAppointmentTypes';
 import SettingsChecklists from './SettingsChecklists';
+import SettingsStammdaten from './SettingsStammdaten';
 
 const SettingsOrderTypes = () => {
-  const [subTab, setSubTab] = useState<'projektarten' | 'terminarten' | 'checklisten'>('projektarten');
+  const [subTab, setSubTab] = useState<'projektarten' | 'terminarten' | 'checklisten' | 'stammdaten'>('projektarten');
 
   const tabs = [
     { key: 'projektarten' as const, label: 'Projektarten', icon: FolderKanban },
     { key: 'terminarten' as const, label: 'Terminarten', icon: Calendar },
     { key: 'checklisten' as const, label: 'Checklisten', icon: ClipboardList },
+    { key: 'stammdaten' as const, label: 'Stammdaten', icon: Settings2 },
   ];
 
   return (
@@ -35,6 +37,7 @@ const SettingsOrderTypes = () => {
       {subTab === 'projektarten' && <SettingsProjektarten />}
       {subTab === 'terminarten' && <SettingsAppointmentTypes />}
       {subTab === 'checklisten' && <SettingsChecklists />}
+      {subTab === 'stammdaten' && <SettingsStammdaten />}
     </div>
   );
 };
