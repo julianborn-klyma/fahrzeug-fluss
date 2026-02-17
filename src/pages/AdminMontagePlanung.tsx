@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
@@ -12,6 +12,7 @@ import PlanungHeader, { type ViewMode, type RightPanel } from '@/components/plan
 import GanttChart, { type GanttTeam, type GanttBar } from '@/components/planung/GanttChart';
 import AppointmentSidebar, { type SidebarAppointment } from '@/components/planung/AppointmentSidebar';
 import PlanungMap, { type MapMarker } from '@/components/planung/PlanungMap';
+import GanttConfirmDialog, { type BarChangeRequest } from '@/components/planung/GanttConfirmDialog';
 
 const AdminMontagePlanung = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const AdminMontagePlanung = () => {
   const [rightPanel, setRightPanel] = useState<RightPanel>('sidebar');
   const [activeDrag, setActiveDrag] = useState<any>(null);
   const [visibleTeamIds, setVisibleTeamIds] = useState<string[] | null>(null);
+  const [barChangeReq, setBarChangeReq] = useState<BarChangeRequest | null>(null);
 
   // Calculate visible days
   const days = useMemo(() => {
@@ -33,7 +35,6 @@ const AdminMontagePlanung = () => {
       start = startOfISOWeek(currentDate);
       end = endOfISOWeek(currentDate);
     } else if (viewMode === 'r4w') {
-      // Rolling 4 weeks: last week, this week, next 2 weeks (4 full ISO weeks)
       const thisWeekStart = startOfISOWeek(currentDate);
       start = subWeeks(thisWeekStart, 1);
       end = endOfISOWeek(addWeeks(thisWeekStart, 2));
@@ -70,7 +71,6 @@ const AdminMontagePlanung = () => {
 
   // ---- DATA FETCHING ----
 
-  // Teams with members
   const { data: teamsData } = useQuery({
     queryKey: ['planung-teams'],
     queryFn: async () => {
@@ -90,7 +90,6 @@ const AdminMontagePlanung = () => {
         })),
       }));
 
-      // Add unassigned members
       const unassigned = profiles.filter(p => !p.team_id);
       if (unassigned.length > 0) {
         ganttTeams.push({
@@ -104,12 +103,10 @@ const AdminMontagePlanung = () => {
     },
   });
 
-  // Scheduled appointments (for gantt bars) within date range
   const { data: scheduledAppointments } = useQuery({
     queryKey: ['planung-scheduled', dateRange.from, dateRange.to],
     enabled: !!dateRange.from,
     queryFn: async () => {
-      // Get appointments with start_date in range that have assignments
       const { data: appts } = await supabase
         .from('job_appointments')
         .select('id, start_date, end_date, status, appointment_type_id, job_id, appointment_types(name, trade), jobs(title, job_number)')
@@ -149,7 +146,6 @@ const AdminMontagePlanung = () => {
     },
   });
 
-  // Unplanned appointments (for sidebar)
   const { data: unplannedAppointments } = useQuery({
     queryKey: ['planung-unplanned'],
     queryFn: async () => {
@@ -161,7 +157,6 @@ const AdminMontagePlanung = () => {
 
       if (!data) return [];
 
-      // Check which have assignments
       const ids = data.map(d => d.id);
       const { data: assigns } = ids.length > 0
         ? await supabase.from('job_appointment_assignments').select('job_appointment_id').in('job_appointment_id', ids)
@@ -189,7 +184,7 @@ const AdminMontagePlanung = () => {
     },
   });
 
-  // ---- DND HANDLERS ----
+  // ---- DND HANDLERS (sidebar → gantt) ----
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDrag(event.active.data.current?.appointment || null);
@@ -210,13 +205,11 @@ const AdminMontagePlanung = () => {
     const [personId, dateStr, personName] = parts;
 
     try {
-      // Update appointment start_date and status
       await supabase
         .from('job_appointments')
         .update({ start_date: dateStr + 'T08:00:00', status: 'geplant' } as any)
         .eq('id', appointmentData.id);
 
-      // Create assignment
       await supabase.from('job_appointment_assignments').insert({
         job_appointment_id: appointmentData.id,
         person_id: personId,
@@ -232,8 +225,46 @@ const AdminMontagePlanung = () => {
     }
   }, [queryClient]);
 
+  // ---- BAR CHANGE (move/resize confirmation) ----
+
+  const handleBarChange = useCallback((req: BarChangeRequest) => {
+    setBarChangeReq(req);
+  }, []);
+
+  const handleConfirmBarChange = useCallback(async (req: BarChangeRequest) => {
+    setBarChangeReq(null);
+    try {
+      // Update appointment dates for ALL assigned monteurs
+      await supabase
+        .from('job_appointments')
+        .update({
+          start_date: req.newStartDate,
+          end_date: req.newEndDate,
+        } as any)
+        .eq('id', req.appointmentId);
+
+      // If moved to a different person, update the assignment
+      if (req.newPersonId && req.oldPersonId) {
+        await supabase
+          .from('job_appointment_assignments')
+          .update({
+            person_id: req.newPersonId,
+            person_name: req.newPersonName || '',
+          } as any)
+          .eq('job_appointment_id', req.appointmentId)
+          .eq('person_id', req.oldPersonId);
+      }
+
+      toast.success('Termin aktualisiert.');
+      queryClient.invalidateQueries({ queryKey: ['planung-scheduled'] });
+    } catch (err) {
+      toast.error('Fehler beim Aktualisieren.');
+      console.error(err);
+    }
+  }, [queryClient]);
+
   // ---- MAP MARKERS ----
-  const mapMarkers: MapMarker[] = []; // Will be populated when properties have coordinates
+  const mapMarkers: MapMarker[] = [];
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -256,12 +287,13 @@ const AdminMontagePlanung = () => {
 
         <div className="flex flex-1 overflow-hidden">
           <GanttChart
-            teams={(teamsData || []).filter(t => 
+            teams={(teamsData || []).filter(t =>
               !visibleTeamIds || visibleTeamIds.includes(t.id)
             )}
             days={days}
             bars={scheduledAppointments || []}
             onBarClick={(jobId) => navigate(`/admin/montage/job/${jobId}`)}
+            onBarChange={handleBarChange}
           />
 
           {rightPanel === 'sidebar' ? (
@@ -272,7 +304,7 @@ const AdminMontagePlanung = () => {
         </div>
       </div>
 
-      {/* Drag overlay */}
+      {/* Drag overlay for sidebar items */}
       <DragOverlay>
         {activeDrag && (
           <div className="bg-card border rounded-lg p-3 shadow-lg w-72 opacity-90">
@@ -281,6 +313,13 @@ const AdminMontagePlanung = () => {
           </div>
         )}
       </DragOverlay>
+
+      {/* Confirmation dialog for bar move/resize */}
+      <GanttConfirmDialog
+        request={barChangeReq}
+        onConfirm={handleConfirmBarChange}
+        onCancel={() => setBarChangeReq(null)}
+      />
     </DndContext>
   );
 };
