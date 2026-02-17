@@ -8,15 +8,17 @@ import { useJobAppointments } from '@/hooks/useJobAppointments';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import ChecklistDetailDialog from '@/components/montage/ChecklistDetailDialog';
+import SignaturePadDialog from '@/components/montage/SignaturePadDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye, ChevronDown, PenLine } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const MonteurJobDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,11 +27,13 @@ const MonteurJobDetail = () => {
   const { data: jobs, isLoading } = useAssignedJobs(user?.id);
   const { documents, getDownloadUrl } = useJobDocuments(id);
   const { checklists, updateStep } = useJobChecklists(id);
-  const { appointments } = useJobAppointments(id);
+  const { appointments, updateJobAppointment } = useJobAppointments(id);
   const [previewDocIndex, setPreviewDocIndex] = useState<number | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
+  const [showSignature, setShowSignature] = useState(false);
+  const [signatureSaving, setSignatureSaving] = useState(false);
 
   // Flat list of all documents for arrow navigation
   const allDocsList = documents;
@@ -87,10 +91,39 @@ const MonteurJobDetail = () => {
       toast.error('Download nicht möglich.');
     }
   };
+  const handleSignatureSave = useCallback(async (blob: Blob) => {
+    if (!id) return;
+    setSignatureSaving(true);
+    try {
+      const filePath = `${id}/signature_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage.from('signatures').upload(filePath, blob);
+      if (uploadError) throw uploadError;
 
+      const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(filePath);
+      const signatureUrl = urlData?.publicUrl || filePath;
 
+      // Update all non-abgenommen appointments with the signature and set to review
+      const apptToUpdate = appointments.filter((a: any) => a.status !== 'abgenommen');
+      for (const appt of apptToUpdate) {
+        await updateJobAppointment.mutateAsync({
+          id: appt.id,
+          status: 'review',
+          signature_url: signatureUrl,
+        } as any);
+      }
 
+      // Update job status to review
+      await supabase.from('jobs').update({ status: 'review' } as any).eq('id', id);
 
+      toast.success('Auftrag abgeschlossen und zur Prüfung eingereicht.');
+      setShowSignature(false);
+      navigate('/montage');
+    } catch (err: any) {
+      toast.error('Fehler beim Speichern: ' + (err.message || 'Unbekannter Fehler'));
+    } finally {
+      setSignatureSaving(false);
+    }
+  }, [id, appointments, updateJobAppointment, navigate]);
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background pb-20">
@@ -233,6 +266,16 @@ const MonteurJobDetail = () => {
                 )}
               </TabsContent>
             </Tabs>
+
+            {job.status !== 'abgeschlossen' && (job.status as string) !== 'review' && (
+              <Button
+                className="w-full gap-2 mt-2"
+                size="lg"
+                onClick={() => setShowSignature(true)}
+              >
+                <PenLine className="h-4 w-4" /> Auftrag abschließen & Unterschreiben
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -253,6 +296,13 @@ const MonteurJobDetail = () => {
         checklistId={selectedChecklistId}
         open={!!selectedChecklistId}
         onOpenChange={(o) => { if (!o) setSelectedChecklistId(null); }}
+      />
+
+      <SignaturePadDialog
+        open={showSignature}
+        onOpenChange={setShowSignature}
+        onSave={handleSignatureSave}
+        saving={signatureSaving}
       />
 
       <MonteurBottomNav active="montage" />
