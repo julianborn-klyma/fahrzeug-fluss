@@ -7,7 +7,7 @@ import { useJobChecklists } from '@/hooks/useJobChecklists';
 import { useJobAppointments } from '@/hooks/useJobAppointments';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
-import ChecklistDetailDialog from '@/components/montage/ChecklistDetailDialog';
+import ChecklistStepDetailSheet from '@/components/montage/ChecklistStepDetailSheet';
 import SignaturePadDialog from '@/components/montage/SignaturePadDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye, ChevronDown, PenLine } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye, ChevronDown, PenLine, Check, AlertCircle, FolderOpen, Camera, Type } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const MonteurJobDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,9 +32,11 @@ const MonteurJobDetail = () => {
   const [previewDocIndex, setPreviewDocIndex] = useState<number | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
   const [showSignature, setShowSignature] = useState(false);
   const [signatureSaving, setSignatureSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   // Flat list of all documents for arrow navigation
   const allDocsList = documents;
@@ -238,28 +241,106 @@ const MonteurJobDetail = () => {
                 {checklists.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Keine Checklisten vorhanden.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {checklists.map((cl) => {
-                      const stepsAll = (cl.steps || []).filter((s: any) => s.step_type !== 'group');
-                      const stepsDone = stepsAll.filter((s: any) => s.is_completed);
-                      const pct = stepsAll.length > 0 ? Math.round((stepsDone.length / stepsAll.length) * 100) : 0;
+                      const allSteps: any[] = cl.steps || [];
+                      const nonGroupSteps = allSteps.filter((s: any) => s.step_type !== 'group');
+                      const stepsDone = nonGroupSteps.filter((s: any) => s.is_completed);
+                      const pct = nonGroupSteps.length > 0 ? Math.round((stepsDone.length / nonGroupSteps.length) * 100) : 0;
+                      const topLevel = allSteps.filter((s: any) => !s.parent_step_id);
+                      const childrenOf = (parentId: string) => allSteps.filter((s: any) => s.parent_step_id === parentId);
+
+                      // Flat list of actionable steps for navigation
+                      const flatSteps = nonGroupSteps;
+
+                      const renderStepRow = (step: any) => {
+                        const flatIdx = flatSteps.findIndex((s: any) => s.id === step.id);
+                        const statusIcon = step.is_completed
+                          ? <Check className="h-4 w-4 text-green-600 shrink-0" />
+                          : step.is_required
+                            ? <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                            : <div className="h-4 w-4 shrink-0" />;
+
+                        const typeIcon = step.step_type === 'photo'
+                          ? <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                          : step.step_type === 'text'
+                            ? <Type className="h-3.5 w-3.5 text-muted-foreground" />
+                            : null;
+
+                        const photos = (step.photo_urls?.filter(Boolean) || []);
+
+                        return (
+                          <div
+                            key={step.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-md border bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              setSelectedChecklistId(cl.id);
+                              setSelectedStepIndex(flatIdx >= 0 ? flatIdx : 0);
+                            }}
+                          >
+                            {statusIcon}
+                            {photos.length > 0 ? (
+                              <img src={photos[0]} alt="" className="h-8 w-8 rounded object-cover shrink-0 border" />
+                            ) : typeIcon ? (
+                              <div className="h-8 w-8 rounded bg-muted/50 flex items-center justify-center shrink-0">{typeIcon}</div>
+                            ) : null}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{step.title}</p>
+                              <p className={`text-xs ${step.is_completed ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                {step.is_completed ? 'Erledigt' : 'Zu erledigen'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      };
+
                       return (
-                        <Card
-                          key={cl.id}
-                          className="cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => setSelectedChecklistId(cl.id)}
-                        >
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">{cl.name}</span>
-                              {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Progress value={pct} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground">{stepsDone.length}/{stepsAll.length}</span>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <div key={cl.id} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{cl.name}</span>
+                            {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Progress value={pct} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground">{stepsDone.length}/{nonGroupSteps.length}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {topLevel.map((step: any) => {
+                              if (step.step_type === 'group') {
+                                const children = childrenOf(step.id);
+                                const groupNonGroup = children.filter((c: any) => c.step_type !== 'group');
+                                const groupDone = groupNonGroup.filter((c: any) => c.is_completed).length;
+                                return (
+                                  <Collapsible key={step.id} defaultOpen>
+                                    <div className="rounded-md border overflow-hidden">
+                                      <CollapsibleTrigger className="w-full">
+                                        <div className="flex items-center justify-between p-2.5 bg-muted/50 hover:bg-muted/80 transition-colors">
+                                          <div className="flex items-center gap-2">
+                                            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm font-medium">{step.title}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Progress value={groupNonGroup.length > 0 ? Math.round((groupDone / groupNonGroup.length) * 100) : 0} className="h-1.5 w-16" />
+                                            <span className="text-xs text-muted-foreground">{groupDone}/{groupNonGroup.length}</span>
+                                          </div>
+                                        </div>
+                                      </CollapsibleTrigger>
+                                      <CollapsibleContent>
+                                        <div className="p-2 space-y-1.5">
+                                          {children.map((child: any) => renderStepRow(child))}
+                                          {children.length === 0 && (
+                                            <p className="text-xs text-muted-foreground py-1 px-2">Keine Schritte.</p>
+                                          )}
+                                        </div>
+                                      </CollapsibleContent>
+                                    </div>
+                                  </Collapsible>
+                                );
+                              }
+                              return renderStepRow(step);
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -292,11 +373,25 @@ const MonteurJobDetail = () => {
         onNext={() => previewDocIndex !== null && navigatePreview(previewDocIndex + 1)}
       />
 
-      <ChecklistDetailDialog
-        checklistId={selectedChecklistId}
-        open={!!selectedChecklistId}
-        onOpenChange={(o) => { if (!o) setSelectedChecklistId(null); }}
-      />
+      {(() => {
+        const selectedChecklist = checklists.find((cl: any) => cl.id === selectedChecklistId);
+        const flatSteps = selectedChecklist
+          ? (selectedChecklist.steps || []).filter((s: any) => s.step_type !== 'group')
+          : [];
+        const currentStep = selectedStepIndex !== null && flatSteps[selectedStepIndex] ? flatSteps[selectedStepIndex] : null;
+        return (
+          <ChecklistStepDetailSheet
+            step={currentStep}
+            open={selectedStepIndex !== null && !!selectedChecklistId}
+            onOpenChange={(o) => { if (!o) { setSelectedStepIndex(null); setSelectedChecklistId(null); } }}
+            allSteps={flatSteps}
+            currentIndex={selectedStepIndex ?? 0}
+            onNavigate={setSelectedStepIndex}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ['job-checklists', id] })}
+            checklistName={selectedChecklist?.name || ''}
+          />
+        );
+      })()}
 
       <SignaturePadDialog
         open={showSignature}
