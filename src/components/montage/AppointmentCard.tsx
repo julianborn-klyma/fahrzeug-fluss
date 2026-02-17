@@ -36,7 +36,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const [open, setOpen] = useState(false);
   const [showAddChecklist, setShowAddChecklist] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [viewChecklist, setViewChecklist] = useState<any>(null);
+  const [viewChecklistId, setViewChecklistId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Date picker state
@@ -359,7 +359,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
-                                onClick={(e) => { e.stopPropagation(); setViewChecklist(cl); }}
+                                onClick={(e) => { e.stopPropagation(); setViewChecklistId(cl.id); }}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
@@ -446,9 +446,9 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
 
       {/* Checklist Detail Dialog */}
       <ChecklistDetailDialog
-        checklist={viewChecklist}
-        open={!!viewChecklist}
-        onOpenChange={(o) => { if (!o) setViewChecklist(null); }}
+        checklistId={viewChecklistId}
+        open={!!viewChecklistId}
+        onOpenChange={(o) => { if (!o) setViewChecklistId(null); }}
       />
     </>
   );
