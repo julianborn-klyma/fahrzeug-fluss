@@ -247,7 +247,10 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Pr
               <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-xs ml-auto">{APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}</Badge>
               {a.isIncomplete && (
                 <Badge variant="destructive" className="text-xs gap-1">
-                  <AlertCircle className="h-3 w-3" /> Unvollständig
+                  <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-destructive-foreground">
+                    <AlertCircle className="h-2.5 w-2.5 text-destructive" />
+                  </span>
+                  Unvollständig
                 </Badge>
               )}
             </DialogTitle>

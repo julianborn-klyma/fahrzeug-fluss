@@ -303,7 +303,9 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
       {/* Incomplete warning */}
       {isIncomplete && (
         <div className="flex items-center gap-1 text-destructive shrink-0" title="Termin unvollständig">
-          <AlertCircle className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-destructive">
+            <AlertCircle className="h-3 w-3 text-destructive-foreground" />
+          </span>
           <span className="text-[10px] font-medium hidden lg:inline">Unvollständig</span>
         </div>
       )}
