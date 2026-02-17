@@ -31,6 +31,10 @@ const AdminMontagePlanung = () => {
     } else if (viewMode === 'week') {
       start = startOfISOWeek(currentDate);
       end = endOfISOWeek(currentDate);
+    } else if (viewMode === 'r4w') {
+      // Rolling 4 weeks: last week + this week + next 2 weeks
+      start = startOfISOWeek(subWeeks(currentDate, 1));
+      end = endOfISOWeek(addWeeks(currentDate, 2));
     } else {
       start = startOfMonth(currentDate);
       end = endOfMonth(currentDate);
@@ -51,11 +55,13 @@ const AdminMontagePlanung = () => {
   const handlePrev = () => {
     if (viewMode === 'day') setCurrentDate(d => addDays(d, -1));
     else if (viewMode === 'week') setCurrentDate(d => subWeeks(d, 1));
+    else if (viewMode === 'r4w') setCurrentDate(d => subWeeks(d, 1));
     else setCurrentDate(d => subMonths(d, 1));
   };
   const handleNext = () => {
     if (viewMode === 'day') setCurrentDate(d => addDays(d, 1));
     else if (viewMode === 'week') setCurrentDate(d => addWeeks(d, 1));
+    else if (viewMode === 'r4w') setCurrentDate(d => addWeeks(d, 1));
     else setCurrentDate(d => addMonths(d, 1));
   };
   const handleToday = () => setCurrentDate(new Date());
