@@ -547,6 +547,7 @@ export type Database = {
           id: string
           is_internal: boolean | null
           job_id: string
+          monteur_visible: boolean
           notes: string
           signature_url: string | null
           start_date: string | null
@@ -560,6 +561,7 @@ export type Database = {
           id?: string
           is_internal?: boolean | null
           job_id: string
+          monteur_visible?: boolean
           notes?: string
           signature_url?: string | null
           start_date?: string | null
@@ -573,6 +575,7 @@ export type Database = {
           id?: string
           is_internal?: boolean | null
           job_id?: string
+          monteur_visible?: boolean
           notes?: string
           signature_url?: string | null
           start_date?: string | null

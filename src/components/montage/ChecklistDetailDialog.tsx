@@ -14,6 +14,7 @@ interface Props {
   checklistId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  readonly?: boolean;
 }
 
 /* ── Fullscreen image slider ────────────────────────────── */
@@ -71,7 +72,7 @@ const PhotoSlider = ({
 };
 
 /* ── Main dialog ────────────────────────────────────────── */
-const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChange }) => {
+const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChange, readonly = false }) => {
   const queryClient = useQueryClient();
   const [editingStep, setEditingStep] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -121,6 +122,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
   };
 
   const toggleStep = async (step: any) => {
+    if (readonly) return;
     const newVal = !step.is_completed;
     try {
       await supabase.from('job_checklist_steps').update({
@@ -213,7 +215,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
     return (
       <div key={step.id} className="flex items-start gap-2 p-2 rounded-md border bg-background">
         {step.step_type === 'checkbox' && (
-          <Checkbox checked={step.is_completed} onCheckedChange={() => toggleStep(step)} className="mt-0.5" />
+          <Checkbox checked={step.is_completed} onCheckedChange={() => toggleStep(step)} className="mt-0.5" disabled={readonly} />
         )}
         {step.step_type === 'text' && <Type className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />}
         {step.step_type === 'photo' && <Camera className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />}
@@ -239,7 +241,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
               ) : (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">{step.text_value || '—'}</span>
-                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}><Pencil className="h-3 w-3" /></Button>
+                  {!readonly && <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}><Pencil className="h-3 w-3" /></Button>}
                 </div>
               )}
             </div>
@@ -249,7 +251,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
           {step.step_type === 'checkbox' && !isEditing && (
             <div className="flex items-center gap-1 mt-0.5">
               {step.text_value && <span className="text-xs text-muted-foreground">{step.text_value}</span>}
-              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}><Pencil className="h-3 w-3 text-muted-foreground" /></Button>
+              {!readonly && <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}><Pencil className="h-3 w-3 text-muted-foreground" /></Button>}
             </div>
           )}
           {step.step_type === 'checkbox' && isEditing && (
@@ -274,28 +276,31 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
                         className="rounded aspect-square object-cover border cursor-pointer w-full hover:opacity-90 transition-opacity"
                         onClick={() => setSlider({ urls: photos, index: i })}
                       />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteSinglePhoto(step.id, url); }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+                      {!readonly && (
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSinglePhoto(step.id, url); }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                disabled={isUploading}
-                onClick={() => {
-                  setActiveUploadStepId(step.id);
-                  fileInputRef.current?.click();
-                }}
+              {!readonly && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={isUploading}
+                  onClick={() => {
+                    setActiveUploadStepId(step.id);
+                    fileInputRef.current?.click();
+                  }}
               >
                 {isUploading ? (
                   <span className="flex items-center gap-1">
@@ -308,14 +313,14 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
                   </>
                 )}
               </Button>
-
+              )}
               {/* Annotation for photo step */}
               {!isEditing && (
                 <div className="flex items-center gap-1 mt-0.5">
                   {step.text_value && <span className="text-xs text-muted-foreground">{step.text_value}</span>}
-                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}>
+                  {!readonly && <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}>
                     <Pencil className="h-3 w-3 text-muted-foreground" />
-                  </Button>
+                  </Button>}
                 </div>
               )}
               {isEditing && (

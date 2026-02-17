@@ -30,8 +30,8 @@ const TRADE_BADGE: Record<string, string> = {
 };
 
 const STATUS_GROUPS: { key: string; label: string; statuses: string[]; icon?: React.ReactNode }[] = [
-  { key: 'vorbereitet', label: 'Vorbereitet', statuses: ['vorbereitet', 'in_planung'] },
-  { key: 'offen', label: 'Offen / Neu', statuses: ['neu'] },
+  { key: 'vorbereitet', label: 'Vorbereitet', statuses: ['vorbereitet'] },
+  { key: 'in_planung', label: 'In Planung', statuses: ['in_planung'] },
   { key: 'nacharbeiten', label: 'Nacharbeiten', statuses: ['review'], icon: <AlertTriangle className="h-3.5 w-3.5 text-warning" /> },
 ];
 

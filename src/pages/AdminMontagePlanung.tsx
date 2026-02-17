@@ -181,7 +181,9 @@ const AdminMontagePlanung = () => {
       const { data } = await supabase
         .from('job_appointments')
         .select('id, status, start_date, appointment_type_id, job_id, appointment_types(name, trade), jobs(title, job_number, status, client_id, clients(company_name, contact_id, contacts(first_name, last_name)))')
-        .or('start_date.is.null,status.eq.offen')
+        .or('start_date.is.null')
+        .neq('status', 'neu')
+        .neq('status', 'abgenommen')
         .order('created_at');
 
       if (!data) return [];
@@ -204,7 +206,7 @@ const AdminMontagePlanung = () => {
           job_number: d.jobs?.job_number || '',
           job_title: d.jobs?.title || '',
           client_name: clientName || 'Kein Kunde',
-          job_status: d.jobs?.status || 'neu',
+          job_status: d.status || 'in_planung',
           has_assignments: assignedSet.has(d.id),
         };
       });
