@@ -159,8 +159,6 @@ const AdminJobDetail = () => {
       {/* Status Timeline */}
       <JobStatusTimeline
         job={job}
-        appointments={appointments}
-        documents={documents}
         onStatusChange={async (newStatus) => {
           await updateJob.mutateAsync({ id: job.id, status: newStatus } as any);
           toast.success(`Status geändert: ${JOB_STATUS_LABELS[newStatus]}`);

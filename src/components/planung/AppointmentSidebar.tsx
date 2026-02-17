@@ -31,8 +31,8 @@ const TRADE_BADGE: Record<string, string> = {
 
 const STATUS_GROUPS: { key: string; label: string; statuses: string[]; icon?: React.ReactNode }[] = [
   { key: 'vorbereitet', label: 'Vorbereitet', statuses: ['vorbereitet', 'in_planung'] },
-  { key: 'offen', label: 'Offen / Neu', statuses: ['erstellt', 'neu'] },
-  { key: 'nacharbeiten', label: 'Reklamationen', statuses: ['nacharbeiten'], icon: <AlertTriangle className="h-3.5 w-3.5 text-warning" /> },
+  { key: 'offen', label: 'Offen / Neu', statuses: ['neu'] },
+  { key: 'nacharbeiten', label: 'Nacharbeiten', statuses: ['review'], icon: <AlertTriangle className="h-3.5 w-3.5 text-warning" /> },
 ];
 
 const DraggableCard = ({ appt }: { appt: SidebarAppointment }) => {

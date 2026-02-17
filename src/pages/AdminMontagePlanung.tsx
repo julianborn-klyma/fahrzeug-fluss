@@ -115,7 +115,7 @@ const AdminMontagePlanung = () => {
         .not('start_date', 'is', null)
         .gte('start_date', dateRange.from + 'T00:00:00')
         .lte('start_date', dateRange.to + 'T23:59:59')
-        .in('status', ['geplant', 'offen', 'abgeschlossen']);
+        .in('status', ['neu', 'in_planung', 'vorbereitet', 'in_umsetzung', 'review', 'abgenommen']);
 
       if (!appts?.length) return [];
 
@@ -209,7 +209,7 @@ const AdminMontagePlanung = () => {
     try {
       await supabase
         .from('job_appointments')
-        .update({ start_date: dateStr + 'T08:00:00', status: 'geplant' } as any)
+        .update({ start_date: dateStr + 'T08:00:00', status: 'in_planung' } as any)
         .eq('id', appointmentData.id);
 
       await supabase.from('job_appointment_assignments').insert({
