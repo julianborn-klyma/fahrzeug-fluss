@@ -21,6 +21,7 @@ interface Props {
   onNavigate: (index: number) => void;
   onRefresh: () => void;
   checklistName: string;
+  readonly?: boolean;
 }
 
 const ChecklistStepDetailSheet: React.FC<Props> = ({
@@ -32,6 +33,7 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
   onNavigate,
   onRefresh,
   checklistName,
+  readonly = false,
 }) => {
   const [editingText, setEditingText] = useState(false);
   const [textValue, setTextValue] = useState('');
@@ -47,7 +49,7 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
   const typeLabel = step?.step_type === 'checkbox' ? 'Aufgabe' : step?.step_type === 'photo' ? 'Foto' : 'Textfeld';
 
   const toggleStep = useCallback(async () => {
-    if (!step) return;
+    if (!step || readonly) return;
     const newVal = !step.is_completed;
     try {
       await supabase.from('job_checklist_steps').update({
@@ -56,7 +58,7 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
       } as any).eq('id', step.id);
       onRefresh();
     } catch { toast.error('Fehler.'); }
-  }, [step, onRefresh]);
+  }, [step, onRefresh, readonly]);
 
   const saveText = useCallback(async () => {
     if (!step) return;
@@ -140,6 +142,7 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
                   checked={step.is_completed}
                   onCheckedChange={toggleStep}
                   className="h-6 w-6"
+                  disabled={readonly}
                 />
               )}
             </div>
@@ -174,42 +177,46 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
                           className="rounded-md aspect-square object-cover border cursor-pointer w-full hover:opacity-90 transition-opacity"
                           onClick={() => setSliderIndex(i)}
                         />
-                        <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="secondary" size="icon" className="h-6 w-6"
-                            onClick={(e) => { e.stopPropagation(); setAnnotation({ url, index: i }); }}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="destructive" size="icon" className="h-6 w-6"
-                            onClick={(e) => { e.stopPropagation(); deletePhoto(url); }}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        {!readonly && (
+                          <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="secondary" size="icon" className="h-6 w-6"
+                              onClick={(e) => { e.stopPropagation(); setAnnotation({ url, index: i }); }}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="destructive" size="icon" className="h-6 w-6"
+                              onClick={(e) => { e.stopPropagation(); deletePhoto(url); }}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  disabled={uploading}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploading ? (
-                    <span className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      Wird hochgeladen…
-                    </span>
-                  ) : (
-                    <><Camera className="h-4 w-4" /> {photos.length > 0 ? 'Weitere Fotos' : 'Foto aufnehmen'}</>
-                  )}
-                </Button>
+                {!readonly && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {uploading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        Wird hochgeladen…
+                      </span>
+                    ) : (
+                      <><Camera className="h-4 w-4" /> {photos.length > 0 ? 'Weitere Fotos' : 'Foto aufnehmen'}</>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
 
             {/* Text / annotation field */}
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Anmerkung</p>
-              {editingText ? (
+              {!readonly && editingText ? (
                 <div className="flex gap-1">
                   <Input
                     value={textValue}
@@ -227,11 +234,11 @@ const ChecklistStepDetailSheet: React.FC<Props> = ({
                 </div>
               ) : (
                 <div
-                  className="flex items-center gap-2 p-2 rounded-md border bg-muted/30 cursor-pointer min-h-[40px]"
-                  onClick={() => { setEditingText(true); setTextValue(step.text_value || ''); }}
+                  className={`flex items-center gap-2 p-2 rounded-md border bg-muted/30 min-h-[40px] ${readonly ? '' : 'cursor-pointer'}`}
+                  onClick={() => { if (!readonly) { setEditingText(true); setTextValue(step.text_value || ''); } }}
                 >
                   <span className="text-sm flex-1">{step.text_value || '—'}</span>
-                  <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {!readonly && <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                 </div>
               )}
             </div>

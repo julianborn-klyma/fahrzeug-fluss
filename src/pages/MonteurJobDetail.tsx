@@ -379,6 +379,12 @@ const MonteurJobDetail = () => {
           ? (selectedChecklist.steps || []).filter((s: any) => s.step_type !== 'group')
           : [];
         const currentStep = selectedStepIndex !== null && flatSteps[selectedStepIndex] ? flatSteps[selectedStepIndex] : null;
+        // Readonly when job is in review or abgeschlossen, or any linked appointment is review/abgenommen
+        const isReadonly = !!job && (
+          job.status === 'abgeschlossen' ||
+          (job.status as string) === 'review' ||
+          appointments.some((a: any) => a.status === 'review' || a.status === 'abgenommen')
+        );
         return (
           <ChecklistStepDetailSheet
             step={currentStep}
@@ -389,6 +395,7 @@ const MonteurJobDetail = () => {
             onNavigate={setSelectedStepIndex}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ['job-checklists', id] })}
             checklistName={selectedChecklist?.name || ''}
+            readonly={isReadonly}
           />
         );
       })()}
