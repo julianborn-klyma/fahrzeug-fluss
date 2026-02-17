@@ -44,6 +44,7 @@ const MonteurJobDetail = lazyRetry(() => import("./pages/MonteurJobDetail"));
 const MonteurPerformance = lazyRetry(() => import("./pages/MonteurPerformance"));
 const DownloadPage = lazyRetry(() => import("./pages/DownloadPage"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
+const SourceExport = lazyRetry(() => import("./pages/SourceExport"));
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ const App = () => (
                       <DownloadPage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/source-export" element={<SourceExport />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
