@@ -335,7 +335,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
       {/* Appointment Status Timeline */}
       <AppointmentStatusTimeline
         appointment={a}
-        documents={[]}
+        documents={jobDocuments || []}
         onStatusChange={async (newStatus) => {
           try {
             await supabase.from('job_appointments').update({ status: newStatus } as any).eq('id', a.id);
