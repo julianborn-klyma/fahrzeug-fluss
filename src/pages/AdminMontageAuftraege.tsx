@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useJobs } from '@/hooks/useJobs';
 import { useAllAppointments } from '@/hooks/useAllAppointments';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle } from 'lucide-react';
+import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import { JOB_STATUS_LABELS, JOB_STATUS_ORDER } from '@/types/montage';
 import type { JobStatus } from '@/types/montage';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
+import { validateVorbereitetRequirements } from '@/components/montage/JobStatusTimeline';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const statusColor: Record<JobStatus, string> = {
@@ -22,6 +24,8 @@ const statusColor: Record<JobStatus, string> = {
   abgeschlossen: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
 
+const STATUSES_REQUIRING_VALIDATION: JobStatus[] = ['vorbereitet', 'in_umsetzung', 'nacharbeiten', 'abgeschlossen'];
+
 const AdminMontageAuftraege = () => {
   const { jobs, loading } = useJobs();
   const { appointments: allAppointments } = useAllAppointments();
@@ -29,6 +33,15 @@ const AdminMontageAuftraege = () => {
   const [search, setSearch] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+
+  // Fetch all job documents for validation
+  const { data: allDocuments } = useQuery({
+    queryKey: ['all-job-documents'],
+    queryFn: async () => {
+      const { data } = await supabase.from('job_documents').select('id, job_id, document_type_id');
+      return data || [];
+    },
+  });
 
   const filtered = jobs.filter(
     (j) =>
@@ -39,6 +52,17 @@ const AdminMontageAuftraege = () => {
 
   const getJobAppointments = (jobId: string) =>
     allAppointments.filter((a: any) => a.job_id === jobId);
+
+  const getJobDocuments = (jobId: string) =>
+    (allDocuments || []).filter((d: any) => d.job_id === jobId);
+
+  const isJobWarning = (job: { id: string; status: JobStatus }) => {
+    if (!STATUSES_REQUIRING_VALIDATION.includes(job.status)) return false;
+    const appts = getJobAppointments(job.id);
+    const docs = getJobDocuments(job.id);
+    const validation = validateVorbereitetRequirements(appts, docs);
+    return !validation.valid;
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -61,8 +85,9 @@ const AdminMontageAuftraege = () => {
           {filtered.map((job) => {
             const isExpanded = expandedJobId === job.id;
             const jobAppts = getJobAppointments(job.id);
+            const hasWarning = isJobWarning(job);
             return (
-              <Card key={job.id} className="transition-colors">
+              <Card key={job.id} className={cn("transition-colors", hasWarning && "border-destructive/50")}>
                 <CardContent className="p-0">
                   <div
                     className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
@@ -82,7 +107,10 @@ const AdminMontageAuftraege = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {hasWarning && (
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                        )}
                         {jobAppts.length > 0 && (
                           <span className="text-xs text-muted-foreground">{jobAppts.length} Termine</span>
                         )}
