@@ -9,6 +9,7 @@ import { CheckSquare, Type, Camera, FolderOpen, ChevronRight, Pencil, Check, X, 
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import PhotoAnnotationDialog from './PhotoAnnotationDialog';
 
 interface Props {
   checklistId: string | null;
@@ -80,7 +81,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeUploadStepId, setActiveUploadStepId] = useState<string | null>(null);
   const [slider, setSlider] = useState<{ urls: string[]; index: number } | null>(null);
-
+  const [annotation, setAnnotation] = useState<{ stepId: string; url: string; index: number } | null>(null);
   const { data: checklist, refetch } = useQuery({
     queryKey: ['checklist-detail', checklistId],
     enabled: !!checklistId && open,
@@ -207,6 +208,23 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
     return { done, total: nonGroup.length, percent: nonGroup.length > 0 ? Math.round((done / nonGroup.length) * 100) : 0 };
   };
 
+  /* Replace a photo URL after annotation */
+  const handleAnnotationSave = async (newUrl: string) => {
+    if (!annotation) return;
+    const step = steps.find(s => s.id === annotation.stepId);
+    if (!step) return;
+    const photos = getPhotos(step);
+    const updated = [...photos];
+    updated[annotation.index] = newUrl;
+    try {
+      await supabase.from('job_checklist_steps').update({
+        photo_urls: updated,
+        photo_url: updated[0] || '',
+      } as any).eq('id', annotation.stepId);
+      invalidate();
+    } catch { toast.error('Fehler.'); }
+  };
+
   const renderStep = (step: any) => {
     const isEditing = editingStep === step.id;
     const isUploading = uploadingStepId === step.id;
@@ -277,14 +295,24 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
                         onClick={() => setSlider({ urls: photos, index: i })}
                       />
                       {!readonly && (
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteSinglePhoto(step.id, url); }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                        <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={(e) => { e.stopPropagation(); setAnnotation({ stepId: step.id, url, index: i }); }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSinglePhoto(step.id, url); }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -361,6 +389,7 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
             ref={fileInputRef}
             className="hidden"
             accept="image/*"
+            capture="environment"
             multiple
             onChange={(e) => {
               const files = e.target.files;
@@ -421,6 +450,17 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
           urls={slider.urls}
           initialIndex={slider.index}
           onClose={() => setSlider(null)}
+        />
+      )}
+
+      {/* Photo annotation editor */}
+      {annotation && (
+        <PhotoAnnotationDialog
+          imageUrl={annotation.url}
+          open={!!annotation}
+          onOpenChange={(o) => { if (!o) setAnnotation(null); }}
+          onSave={handleAnnotationSave}
+          bucketPath={`checklists/${checklist?.id}/${annotation.stepId}`}
         />
       )}
     </>
