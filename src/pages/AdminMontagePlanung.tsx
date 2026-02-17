@@ -21,6 +21,7 @@ const AdminMontagePlanung = () => {
   const [showWeekends, setShowWeekends] = useState(true);
   const [rightPanel, setRightPanel] = useState<RightPanel>('sidebar');
   const [activeDrag, setActiveDrag] = useState<any>(null);
+  const [visibleTeamIds, setVisibleTeamIds] = useState<string[] | null>(null);
 
   // Calculate visible days
   const days = useMemo(() => {
@@ -248,11 +249,16 @@ const AdminMontagePlanung = () => {
           onToggleWeekends={() => setShowWeekends(p => !p)}
           rightPanel={rightPanel}
           onToggleRightPanel={() => setRightPanel(p => p === 'sidebar' ? 'map' : 'sidebar')}
+          teams={(teamsData || []).map(t => ({ id: t.id, name: t.name }))}
+          visibleTeamIds={visibleTeamIds || (teamsData || []).map(t => t.id)}
+          onVisibleTeamIdsChange={setVisibleTeamIds}
         />
 
         <div className="flex flex-1 overflow-hidden">
           <GanttChart
-            teams={teamsData || []}
+            teams={(teamsData || []).filter(t => 
+              !visibleTeamIds || visibleTeamIds.includes(t.id)
+            )}
             days={days}
             bars={scheduledAppointments || []}
             onBarClick={(jobId) => navigate(`/admin/montage/job/${jobId}`)}
