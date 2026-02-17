@@ -111,7 +111,7 @@ const AdminMontagePlanung = () => {
     queryFn: async () => {
       const { data: appts } = await supabase
         .from('job_appointments')
-        .select('id, start_date, end_date, status, appointment_type_id, job_id, appointment_types(name, trade), jobs(title, job_number)')
+        .select('id, start_date, end_date, status, appointment_type_id, job_id, field_values, appointment_types(name, trade, appointment_type_fields(*), appointment_type_documents(document_type_id)), jobs(title, job_number)')
         .not('start_date', 'is', null)
         .gte('start_date', dateRange.from + 'T00:00:00')
         .lte('start_date', dateRange.to + 'T23:59:59')
@@ -120,15 +120,41 @@ const AdminMontagePlanung = () => {
       if (!appts?.length) return [];
 
       const ids = appts.map(a => a.id);
-      const { data: assignments } = await supabase
-        .from('job_appointment_assignments')
-        .select('*')
-        .in('job_appointment_id', ids);
+      const jobIds = [...new Set(appts.map(a => a.job_id))];
+
+      const [assignRes, checkRes, docRes] = await Promise.all([
+        supabase.from('job_appointment_assignments').select('*').in('job_appointment_id', ids),
+        supabase.from('job_checklists').select('id, appointment_id').in('appointment_id', ids),
+        supabase.from('job_documents').select('id, job_id, document_type_id').in('job_id', jobIds),
+      ]);
+
+      const assignments = assignRes.data || [];
+      const checklistsByAppt: Record<string, number> = {};
+      for (const cl of (checkRes.data || [])) {
+        const apptId = (cl as any).appointment_id;
+        if (apptId) checklistsByAppt[apptId] = (checklistsByAppt[apptId] || 0) + 1;
+      }
+      const docsByJob: Record<string, any[]> = {};
+      for (const d of (docRes.data || [])) {
+        if (!docsByJob[d.job_id]) docsByJob[d.job_id] = [];
+        docsByJob[d.job_id].push(d);
+      }
 
       const bars: GanttBar[] = [];
       for (const appt of appts) {
-        const apptAssignments = (assignments || []).filter(a => a.job_appointment_id === appt.id);
+        const apptAssignments = assignments.filter(a => a.job_appointment_id === appt.id);
         if (apptAssignments.length === 0) continue;
+
+        // Check completeness
+        const reqDocs = (appt.appointment_types as any)?.appointment_type_documents || [];
+        const jobDocs = docsByJob[appt.job_id] || [];
+        const hasMissingDocs = reqDocs.some((rd: any) => !jobDocs.some((d: any) => d.document_type_id === rd.document_type_id));
+        const hasNoChecklists = !checklistsByAppt[appt.id];
+        const apptFields = ((appt.appointment_types as any)?.appointment_type_fields || []);
+        const fv = (appt.field_values as any) || {};
+        const hasMissingFields = apptFields.some((f: any) => f.is_required && !fv[f.id]?.toString().trim());
+        const isIncomplete = hasMissingDocs || hasNoChecklists || hasMissingFields;
+
         for (const assign of apptAssignments) {
           bars.push({
             id: `${appt.id}-${assign.person_id}`,
@@ -141,6 +167,7 @@ const AdminMontagePlanung = () => {
             job_title: (appt.jobs as any)?.title || '',
             trade: (appt.appointment_types as any)?.trade || null,
             job_id: appt.job_id,
+            isIncomplete,
           });
         }
       }

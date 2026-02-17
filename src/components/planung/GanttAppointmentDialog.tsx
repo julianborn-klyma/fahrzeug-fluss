@@ -59,28 +59,40 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Pr
     queryFn: async () => {
       const { data, error } = await supabase
         .from('job_appointments')
-        .select('*, appointment_types(*, appointment_type_fields(*)), jobs(title, job_number)')
+        .select('*, appointment_types(*, appointment_type_fields(*), appointment_type_documents(document_type_id)), jobs(title, job_number)')
         .eq('id', appointmentId!)
         .single();
       if (error) throw error;
 
-      // Fetch assignments & checklists
-      const [assignRes, checkRes] = await Promise.all([
+      // Fetch assignments, checklists & job documents
+      const [assignRes, checkRes, docRes] = await Promise.all([
         supabase.from('job_appointment_assignments').select('*').eq('job_appointment_id', appointmentId!),
         supabase.from('job_checklists').select('*, job_checklist_steps(*)').eq('appointment_id', appointmentId!).order('created_at'),
+        supabase.from('job_documents').select('id, document_type_id').eq('job_id', data.job_id),
       ]);
+
+      const reqDocs = data.appointment_types?.appointment_type_documents || [];
+      const jobDocs = docRes.data || [];
+      const apptChecklists = (checkRes.data || []).map((cl: any) => ({
+        ...cl,
+        steps: ((cl as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
+      }));
+      const apptFields = (data.appointment_types?.appointment_type_fields || []).sort((a: any, b: any) => a.display_order - b.display_order);
+      const fv = (data.field_values as any) || {};
+      const hasMissingDocs = reqDocs.some((rd: any) => !jobDocs.some((d: any) => d.document_type_id === rd.document_type_id));
+      const hasMissingChecklists = apptChecklists.length === 0;
+      const hasMissingFields = apptFields.some((f: any) => f.is_required && !fv[f.id]?.toString().trim());
 
       return {
         ...data,
         assignments: assignRes.data || [],
-        checklists: (checkRes.data || []).map((cl: any) => ({
-          ...cl,
-          steps: ((cl as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
-        })),
+        checklists: apptChecklists,
         appointment_type: data.appointment_types ? {
           ...data.appointment_types,
-          fields: (data.appointment_types.appointment_type_fields || []).sort((a: any, b: any) => a.display_order - b.display_order),
+          fields: apptFields,
+          required_documents: reqDocs,
         } : undefined,
+        isIncomplete: hasMissingDocs || hasMissingChecklists || hasMissingFields,
       };
     },
   });
@@ -233,6 +245,11 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Pr
                 <Badge variant="outline" className="text-xs">{TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}</Badge>
               )}
               <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-xs ml-auto">{APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}</Badge>
+              {a.isIncomplete && (
+                <Badge variant="destructive" className="text-xs gap-1">
+                  <AlertCircle className="h-3 w-3" /> Unvollständig
+                </Badge>
+              )}
             </DialogTitle>
             <div className="flex items-center gap-2 mt-1">
               <Label className="text-xs text-muted-foreground">Extern</Label>

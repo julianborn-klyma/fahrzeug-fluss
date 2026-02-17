@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Users, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, User, AlertCircle } from 'lucide-react';
 import { format, isToday, isWeekend, differenceInCalendarDays, startOfDay, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ export interface GanttBar {
   job_title: string;
   trade: string | null;
   job_id: string;
+  isIncomplete?: boolean;
 }
 
 interface Props {
@@ -436,6 +437,9 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                           onClick={() => { if (!wasDragged.current) onBarClick?.(bar); }}
                         />
                         {/* Content */}
+                        {bar.isIncomplete && (
+                          <AlertCircle className="h-3 w-3 text-destructive shrink-0 relative pointer-events-none" />
+                        )}
                         <span className="font-medium truncate relative pointer-events-none">
                           {bar.job_title}_{bar.type_name}
                         </span>
