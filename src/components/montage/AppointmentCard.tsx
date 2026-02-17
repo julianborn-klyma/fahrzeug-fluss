@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye, Trash2 } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,8 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const [showAddChecklist, setShowAddChecklist] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [viewChecklistId, setViewChecklistId] = useState<string | null>(null);
+  const [showAddMonteur, setShowAddMonteur] = useState(false);
+  const [selectedMonteurId, setSelectedMonteurId] = useState('');
   const queryClient = useQueryClient();
 
   // Date picker state
@@ -59,6 +61,26 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
         .select('*, checklist_template_steps(*)')
         .order('name');
       return data || [];
+    },
+  });
+
+  // Fetch all monteur profiles for assignment
+  const { data: monteurProfiles } = useQuery({
+    queryKey: ['monteur-profiles-for-assignment'],
+    enabled: showAddMonteur,
+    queryFn: async () => {
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'monteur' as any);
+      if (!roles?.length) return [];
+      const userIds = roles.map(r => r.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, email')
+        .in('user_id', userIds)
+        .order('name');
+      return profiles || [];
     },
   });
 
@@ -88,6 +110,30 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
       } as any).eq('id', a.id);
       queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
       toast.success('Datum gespeichert.');
+    } catch { toast.error('Fehler.'); }
+  };
+
+  const handleAddMonteur = async () => {
+    if (!selectedMonteurId) return;
+    const profile = (monteurProfiles || []).find((p: any) => p.user_id === selectedMonteurId);
+    try {
+      await supabase.from('job_appointment_assignments').insert({
+        job_appointment_id: a.id,
+        person_id: selectedMonteurId,
+        person_name: profile?.name || '',
+      } as any);
+      queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+      setSelectedMonteurId('');
+      setShowAddMonteur(false);
+      toast.success('Monteur zugeordnet.');
+    } catch { toast.error('Fehler.'); }
+  };
+
+  const handleRemoveMonteur = async (assignmentId: string) => {
+    try {
+      await supabase.from('job_appointment_assignments').delete().eq('id', assignmentId);
+      queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+      toast.success('Zuordnung entfernt.');
     } catch { toast.error('Fehler.'); }
   };
 
@@ -277,6 +323,40 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                 </Button>
               </div>
 
+              {/* Monteur Assignments */}
+              <div className="border-b pb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" /> Zugewiesene Monteure
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs gap-1"
+                    onClick={(e) => { e.stopPropagation(); setShowAddMonteur(true); }}
+                  >
+                    <Plus className="h-3 w-3" /> Monteur zuweisen
+                  </Button>
+                </div>
+                {assignments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Keine Monteure zugeordnet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {assignments.map((ass: any) => (
+                      <Badge key={ass.id} variant="secondary" className="gap-1 pr-1">
+                        {ass.person_name || 'Unbenannt'}
+                        <button
+                          className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveMonteur(ass.id); }}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Fields */}
               {fields.length > 0 ? (
                 <div>
@@ -439,6 +519,30 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
             </Select>
             <Button onClick={handleAddChecklist} disabled={!selectedTemplateId} className="w-full">
               Hinzufügen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Monteur Dialog */}
+      <Dialog open={showAddMonteur} onOpenChange={setShowAddMonteur}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Monteur zuweisen</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Select value={selectedMonteurId} onValueChange={setSelectedMonteurId}>
+              <SelectTrigger><SelectValue placeholder="Monteur wählen…" /></SelectTrigger>
+              <SelectContent>
+                {(monteurProfiles || [])
+                  .filter((p: any) => !assignments.some((ass: any) => ass.person_id === p.user_id))
+                  .map((p: any) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.name || p.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAddMonteur} disabled={!selectedMonteurId} className="w-full">
+              Zuweisen
             </Button>
           </div>
         </DialogContent>
