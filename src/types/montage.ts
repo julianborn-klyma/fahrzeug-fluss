@@ -1,5 +1,5 @@
 export type TradeType = 'SHK' | 'Elektro' | 'Fundament' | 'Dach' | 'GaLa';
-export type JobStatus = 'neu' | 'in_planung' | 'vorbereitet' | 'in_umsetzung' | 'nacharbeiten' | 'abgeschlossen';
+export type JobStatus = 'neu' | 'in_planung' | 'vorbereitet' | 'in_umsetzung' | 'review' | 'abgenommen' | 'nacharbeiten' | 'abgeschlossen';
 
 export interface Contact {
   id: string;
@@ -203,11 +203,13 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   in_planung: 'In Planung',
   vorbereitet: 'Vorbereitet',
   in_umsetzung: 'In Umsetzung',
+  review: 'Review',
+  abgenommen: 'Abgenommen',
   nacharbeiten: 'Nacharbeiten',
   abgeschlossen: 'Abgeschlossen',
 };
 
-export const JOB_STATUS_ORDER: JobStatus[] = ['neu', 'in_planung', 'vorbereitet', 'in_umsetzung', 'nacharbeiten', 'abgeschlossen'];
+export const JOB_STATUS_ORDER: JobStatus[] = ['neu', 'in_planung', 'vorbereitet', 'in_umsetzung', 'review', 'abgenommen', 'nacharbeiten', 'abgeschlossen'];
 
 export interface AppointmentTypeField {
   id: string;
