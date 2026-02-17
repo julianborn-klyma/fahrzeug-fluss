@@ -308,6 +308,24 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
                   </>
                 )}
               </Button>
+
+              {/* Annotation for photo step */}
+              {!isEditing && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  {step.text_value && <span className="text-xs text-muted-foreground">{step.text_value}</span>}
+                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditingStep(step.id); setEditValue(step.text_value || ''); }}>
+                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              )}
+              {isEditing && (
+                <div className="flex gap-1 mt-1">
+                  <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 text-xs" placeholder="Anmerkung hinzufügen…" autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') updateTextValue(step.id, editValue); if (e.key === 'Escape') setEditingStep(null); }} />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateTextValue(step.id, editValue)}><Check className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStep(null)}><X className="h-3 w-3" /></Button>
+                </div>
+              )}
             </div>
           )}
 
