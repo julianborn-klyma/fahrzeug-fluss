@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Calendar, Users, CheckSquare, Plus, Eye, Trash2, X, ExternalLink,
-  AlertCircle, CheckCircle2,
+  AlertCircle, CheckCircle2, MapPin,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -30,6 +30,7 @@ interface Props {
   jobId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onShowDistance?: (appointmentId: string) => void;
 }
 
 import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@/types/montage';
@@ -43,7 +44,7 @@ const STATUS_VARIANTS: Record<AppointmentStatus, 'default' | 'secondary' | 'outl
   abgenommen: 'default',
 };
 
-const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Props) => {
+const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange, onShowDistance }: Props) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showAddMonteur, setShowAddMonteur] = useState(false);
@@ -277,6 +278,20 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Pr
                   <ExternalLink className="h-3 w-3" />
                   Zum Auftrag
                 </Button>
+                {onShowDistance && appointmentId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-xs gap-1"
+                    onClick={() => {
+                      onShowDistance(appointmentId);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <MapPin className="h-3 w-3" />
+                    Distanz anzeigen
+                  </Button>
+                )}
               </div>
             )}
           </DialogHeader>
