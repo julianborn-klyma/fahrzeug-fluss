@@ -500,6 +500,38 @@ export type Database = {
           },
         ]
       }
+      job_appointment_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          job_appointment_id: string
+          person_id: string
+          person_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_appointment_id: string
+          person_id: string
+          person_name?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_appointment_id?: string
+          person_id?: string
+          person_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_appointment_assignments_job_appointment_id_fkey"
+            columns: ["job_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "job_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_appointments: {
         Row: {
           appointment_type_id: string

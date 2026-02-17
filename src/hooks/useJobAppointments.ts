@@ -21,12 +21,12 @@ export const useJobAppointments = (jobId?: string) => {
       let checklistsMap: Record<string, any[]> = {};
       if (ids.length > 0) {
         const [assignRes, checkRes] = await Promise.all([
-          supabase.from('appointment_assignments').select('*').in('appointment_id', ids),
+          supabase.from('job_appointment_assignments').select('*').in('job_appointment_id', ids),
           supabase.from('job_checklists').select('*, job_checklist_steps(*)').in('appointment_id', ids).order('created_at'),
         ]);
         for (const a of (assignRes.data || [])) {
-          if (!assignmentsMap[a.appointment_id]) assignmentsMap[a.appointment_id] = [];
-          assignmentsMap[a.appointment_id].push(a);
+          if (!assignmentsMap[a.job_appointment_id]) assignmentsMap[a.job_appointment_id] = [];
+          assignmentsMap[a.job_appointment_id].push(a);
         }
         for (const cl of (checkRes.data || [])) {
           const apptId = (cl as any).appointment_id;
