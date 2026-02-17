@@ -6,10 +6,11 @@ import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobChecklists } from '@/hooks/useJobChecklists';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
+import ChecklistDetailDialog from '@/components/montage/ChecklistDetailDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, MapPin, FileText, CheckSquare, Download, Info, Eye } from 'lucide-react';
 import { JOB_STATUS_LABELS } from '@/types/montage';
@@ -24,6 +25,7 @@ const MonteurJobDetail = () => {
   const { checklists, updateStep } = useJobChecklists(id);
   const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
 
   const job = jobs?.find((j) => j.id === id);
 
@@ -36,18 +38,8 @@ const MonteurJobDetail = () => {
     }
   };
 
-  const handleToggleStep = async (stepId: string, currentCompleted: boolean) => {
-    try {
-      await updateStep.mutateAsync({
-        id: stepId,
-        is_completed: !currentCompleted,
-        completed_at: !currentCompleted ? new Date().toISOString() : null,
-        completed_by: !currentCompleted ? user?.id || null : null,
-      });
-    } catch {
-      toast.error('Fehler beim Aktualisieren.');
-    }
-  };
+
+
 
   if (isLoading) {
     return (
@@ -153,30 +145,30 @@ const MonteurJobDetail = () => {
                 {checklists.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Keine Checklisten vorhanden.</p>
                 ) : (
-                  <div className="space-y-4">
-                    {checklists.map((cl) => (
-                      <Card key={cl.id}>
-                        <CardContent className="p-3 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">{cl.name}</span>
-                            {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
-                          </div>
-                          {cl.steps?.map((step) => (
-                            <div key={step.id} className="flex items-start gap-2">
-                              <Checkbox
-                                checked={step.is_completed}
-                                onCheckedChange={() => handleToggleStep(step.id, step.is_completed)}
-                                className="mt-0.5"
-                              />
-                              <span className={`text-sm ${step.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                                {step.title}
-                                {step.is_required && <span className="text-destructive ml-1">*</span>}
-                              </span>
+                  <div className="space-y-3">
+                    {checklists.map((cl) => {
+                      const stepsAll = (cl.steps || []).filter((s: any) => s.step_type !== 'group');
+                      const stepsDone = stepsAll.filter((s: any) => s.is_completed);
+                      const pct = stepsAll.length > 0 ? Math.round((stepsDone.length / stepsAll.length) * 100) : 0;
+                      return (
+                        <Card
+                          key={cl.id}
+                          className="cursor-pointer hover:shadow-md transition-shadow"
+                          onClick={() => setSelectedChecklistId(cl.id)}
+                        >
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">{cl.name}</span>
+                              {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
                             </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    ))}
+                            <div className="flex items-center gap-2">
+                              <Progress value={pct} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground">{stepsDone.length}/{stepsAll.length}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
@@ -192,6 +184,13 @@ const MonteurJobDetail = () => {
         fileUrl={previewDoc?.url || null}
         loading={previewLoading}
       />
+
+      <ChecklistDetailDialog
+        checklistId={selectedChecklistId}
+        open={!!selectedChecklistId}
+        onOpenChange={(o) => { if (!o) setSelectedChecklistId(null); }}
+      />
+
       <MonteurBottomNav active="montage" />
     </div>
   );
