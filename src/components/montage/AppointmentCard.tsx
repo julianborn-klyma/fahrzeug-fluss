@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -10,7 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye, Trash2, X } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import {
+  Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2,
+  CheckSquare, Plus, Eye, Trash2, X, Maximize2,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -33,7 +36,8 @@ const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'des
 };
 
 const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [showAddChecklist, setShowAddChecklist] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [viewChecklistId, setViewChecklistId] = useState<string | null>(null);
@@ -64,7 +68,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
     },
   });
 
-  // Fetch all monteur profiles for assignment
   const { data: monteurProfiles } = useQuery({
     queryKey: ['monteur-profiles-for-assignment'],
     enabled: showAddMonteur,
@@ -94,6 +97,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
 
   const totalSteps = checklists.reduce((sum: number, cl: any) => sum + (cl.steps?.length || 0), 0);
   const doneSteps = checklists.reduce((sum: number, cl: any) => sum + (cl.steps?.filter((s: any) => s.is_completed)?.length || 0), 0);
+  const checklistPercent = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
 
   const saveDate = async () => {
     if (!startDate || !endDate) return;
@@ -154,11 +158,10 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
         .select()
         .single();
       if (error) throw error;
-      
+
       const templateSteps = (template.checklist_template_steps || [])
-        .sort((a: any, b: any) => a.order_index - b.order_index);
-      
-      // First pass: insert all steps without parent_step_id
+        .sort((x: any, y: any) => x.order_index - y.order_index);
+
       const stepsToInsert = templateSteps.map((s: any) => ({
         checklist_id: cl.id,
         template_step_id: s.id,
@@ -167,14 +170,13 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
         order_index: s.order_index,
         is_required: s.is_required,
       }));
-      
+
       if (stepsToInsert.length > 0) {
         const { data: insertedSteps } = await supabase
           .from('job_checklist_steps')
           .insert(stepsToInsert as any)
           .select();
-        
-        // Second pass: update parent_step_id mapping
+
         if (insertedSteps) {
           const templateToJobMap: Record<string, string> = {};
           for (const step of insertedSteps) {
@@ -182,8 +184,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
               templateToJobMap[(step as any).template_step_id] = step.id;
             }
           }
-          
-          // Update children with correct parent_step_id
           for (const ts of templateSteps) {
             if (ts.parent_step_id && templateToJobMap[ts.parent_step_id] && templateToJobMap[ts.id]) {
               await supabase.from('job_checklist_steps')
@@ -193,7 +193,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
           }
         }
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
       setShowAddChecklist(false);
       setSelectedTemplateId('');
@@ -203,304 +203,479 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
     }
   };
 
-  return (
-    <>
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <Card className="overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex justify-between items-start gap-2">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                  <div className="mt-0.5">
-                    {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+  // ── Helper: Checklist group progress ──
+  const getChecklistGroupProgress = (cl: any) => {
+    const groupSteps = (cl.steps || []).filter((s: any) => s.step_type === 'group');
+    return groupSteps.map((g: any) => {
+      const children = (cl.steps || []).filter((s: any) => s.parent_step_id === g.id);
+      const gDone = children.filter((c: any) => c.is_completed).length;
+      const gTotal = children.length;
+      return { id: g.id, title: g.title, done: gDone, total: gTotal, percent: gTotal > 0 ? Math.round((gDone / gTotal) * 100) : 0 };
+    });
+  };
+
+  // ══════════════════════════════════════════
+  // LEVEL 1: Collapsed row
+  // ══════════════════════════════════════════
+  const CollapsedRow = (
+    <div className="flex items-center gap-3 py-2.5 px-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setExpanded(!expanded)}>
+      <div className="shrink-0">
+        {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </div>
+
+      {/* Name */}
+      <span className="text-sm font-medium truncate min-w-[120px]">{a.appointment_type?.name || 'Termin'}</span>
+
+      {/* Badges: Trade / Intern */}
+      <div className="flex items-center gap-1 shrink-0">
+        {a.appointment_type?.is_internal ? (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Intern</Badge>
+        ) : (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">Extern</Badge>
+        )}
+        {a.appointment_type?.trade && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}
+          </Badge>
+        )}
+      </div>
+
+      {/* Date */}
+      <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+        <Calendar className="h-3 w-3" />
+        {hasDateSet ? (
+          <span>
+            {format(new Date(a.start_date), 'dd.MM.yy', { locale: de })}
+            {' '}
+            {format(new Date(a.start_date), 'HH:mm')}–{format(new Date(a.end_date), 'HH:mm')}
+          </span>
+        ) : (
+          <span className="italic">—</span>
+        )}
+      </div>
+
+      {/* Monteure */}
+      {assignments.length > 0 && (
+        <div className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Users className="h-3 w-3" />
+          <span className="truncate max-w-[150px]">{assignments.map((ass: any) => ass.person_name || '?').join(', ')}</span>
+        </div>
+      )}
+
+      {/* Checklist progress */}
+      {totalSteps > 0 && (
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0 ml-auto">
+          <CheckSquare className="h-3 w-3 text-muted-foreground" />
+          <Progress value={checklistPercent} className="h-1.5 w-16" />
+          <span className="text-[10px] text-muted-foreground font-medium">{doneSteps}/{totalSteps}</span>
+        </div>
+      )}
+
+      {/* Status */}
+      <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-[10px] shrink-0 ml-auto sm:ml-0">
+        {a.status}
+      </Badge>
+
+      {/* Detail button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 shrink-0"
+        onClick={(e) => { e.stopPropagation(); setDetailOpen(true); }}
+      >
+        <Maximize2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
+  // LEVEL 2: Expanded split view
+  // ══════════════════════════════════════════
+  const ExpandedView = (
+    <div className="border-t bg-muted/20 px-3 py-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* LEFT: Date & Monteure */}
+        <div className="space-y-3">
+          {/* Date */}
+          <div>
+            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <Calendar className="h-3 w-3" /> Zeitraum
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Start</Label>
+                <div className="flex gap-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !startDate && "text-muted-foreground")}>
+                        {startDate ? format(startDate, 'dd.MM.yy', { locale: de }) : '—'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-7 text-xs w-20" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Ende</Label>
+                <div className="flex gap-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !endDate && "text-muted-foreground")}>
+                        {endDate ? format(endDate, 'dd.MM.yy', { locale: de }) : '—'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-7 text-xs w-20" />
+                </div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="mt-1.5 h-6 text-[10px]" onClick={(e) => { e.stopPropagation(); saveDate(); }} disabled={!startDate || !endDate}>
+              Speichern
+            </Button>
+          </div>
+
+          <Separator />
+
+          {/* Monteure */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <Users className="h-3 w-3" /> Monteure
+              </h4>
+              <Button variant="ghost" size="sm" className="h-5 text-[10px] gap-0.5 px-1.5" onClick={(e) => { e.stopPropagation(); setShowAddMonteur(true); }}>
+                <Plus className="h-2.5 w-2.5" /> Zuweisen
+              </Button>
+            </div>
+            {assignments.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground italic">Keine Monteure</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {assignments.map((ass: any) => (
+                  <Badge key={ass.id} variant="secondary" className="text-[10px] gap-0.5 pr-0.5 h-5">
+                    {ass.person_name || '?'}
+                    <button className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5" onClick={(e) => { e.stopPropagation(); handleRemoveMonteur(ass.id); }}>
+                      <X className="h-2.5 w-2.5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: Checklists with group progress */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <CheckSquare className="h-3 w-3" /> Checklisten
+            </h4>
+            <Button variant="ghost" size="sm" className="h-5 text-[10px] gap-0.5 px-1.5" onClick={(e) => { e.stopPropagation(); setShowAddChecklist(true); }}>
+              <Plus className="h-2.5 w-2.5" /> Hinzufügen
+            </Button>
+          </div>
+
+          {checklists.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic">Keine Checklisten</p>
+          ) : (
+            <div className="space-y-2">
+              {checklists.map((cl: any) => {
+                const clTotal = cl.steps?.length || 0;
+                const clDone = cl.steps?.filter((s: any) => s.is_completed)?.length || 0;
+                const clPercent = clTotal > 0 ? Math.round((clDone / clTotal) * 100) : 0;
+                const groups = getChecklistGroupProgress(cl);
+
+                return (
+                  <div key={cl.id} className="rounded border bg-background p-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">{cl.name}</span>
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-[10px] text-muted-foreground">{clDone}/{clTotal}</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); setViewChecklistId(cl.id); }}>
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-5 w-5 text-destructive"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Checkliste wirklich löschen?')) return;
+                            try {
+                              await supabase.from('job_checklists').delete().eq('id', cl.id);
+                              queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+                              toast.success('Gelöscht.');
+                            } catch { toast.error('Fehler.'); }
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Progress value={clPercent} className="h-1 flex-1" />
+                      <span className="text-[10px] text-muted-foreground">{clPercent}%</span>
+                    </div>
+                    {groups.length > 0 && (
+                      <div className="space-y-0.5 pt-0.5">
+                        {groups.map(g => (
+                          <div key={g.id} className="flex items-center gap-1.5 text-[10px]">
+                            <span className="text-muted-foreground truncate flex-1">{g.title}</span>
+                            <Progress value={g.percent} className="h-0.5 w-12" />
+                            <span className="text-muted-foreground">{g.done}/{g.total}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium">{a.appointment_type?.name || 'Termin'}</span>
-                      {a.appointment_type?.trade && (
-                        <Badge variant="outline" className="text-xs">
-                          {TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}
-                        </Badge>
-                      )}
-                      {a.appointment_type?.is_internal && (
-                        <Badge variant="default" className="text-xs bg-amber-500 hover:bg-amber-600">Intern</Badge>
-                      )}
-                      {checklists.length > 0 && (
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <CheckSquare className="h-3 w-3" /> {doneSteps}/{totalSteps}
-                        </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
+  // LEVEL 3: Detail Modal
+  // ══════════════════════════════════════════
+  const DetailModal = (
+    <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {a.appointment_type?.name || 'Termin'}
+            {a.appointment_type?.is_internal ? (
+              <Badge variant="secondary" className="text-xs">Intern</Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">Extern</Badge>
+            )}
+            {a.appointment_type?.trade && (
+              <Badge variant="outline" className="text-xs">{TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}</Badge>
+            )}
+            <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-xs ml-auto">{a.status}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-2">
+          {/* Date & Time */}
+          <section>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Startdatum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs">Startzeit</Label>
+                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Enddatum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs">Endzeit</Label>
+                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
+              </div>
+            </div>
+            <Button size="sm" className="mt-2 h-7 text-xs" onClick={saveDate} disabled={!startDate || !endDate}>
+              Datum speichern
+            </Button>
+          </section>
+
+          <Separator />
+
+          {/* Monteure */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                <Users className="h-3.5 w-3.5" /> Zugewiesene Monteure
+              </h4>
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setShowAddMonteur(true)}>
+                <Plus className="h-3 w-3" /> Zuweisen
+              </Button>
+            </div>
+            {assignments.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Keine Monteure zugeordnet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {assignments.map((ass: any) => (
+                  <Badge key={ass.id} variant="secondary" className="gap-1 pr-1">
+                    {ass.person_name || '?'}
+                    <button className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5" onClick={() => handleRemoveMonteur(ass.id)}>
+                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <Separator />
+
+          {/* Fields */}
+          <section>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Felder</h4>
+            {fields.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {fields.map((f: any) => {
+                    const val = fieldValues[f.id];
+                    const isEmpty = val === undefined || val === null || val === '';
+                    return (
+                      <div key={f.id} className="text-sm">
+                        <span className="text-muted-foreground text-xs">
+                          {f.label}
+                          {f.is_required && <span className="text-destructive ml-0.5">*</span>}
+                        </span>
+                        <p className={cn("font-medium text-sm", isEmpty && "text-muted-foreground/50 italic")}>
+                          {isEmpty ? '—' : String(val)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {requiredFields.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs mt-2">
+                    {isFieldsComplete ? (
+                      <span className="flex items-center gap-1 text-primary">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Alle Pflichtfelder ausgefüllt
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-destructive">
+                        <AlertCircle className="h-3.5 w-3.5" /> {requiredFields.length - filledRequired.length} offen
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Keine Felder definiert.</p>
+            )}
+          </section>
+
+          <Separator />
+
+          {/* Checklists */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                <CheckSquare className="h-3.5 w-3.5" /> Checklisten
+              </h4>
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setShowAddChecklist(true)}>
+                <Plus className="h-3 w-3" /> Hinzufügen
+              </Button>
+            </div>
+
+            {checklists.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Keine Checklisten zugeordnet.</p>
+            ) : (
+              <div className="space-y-2">
+                {checklists.map((cl: any) => {
+                  const clTotal = cl.steps?.length || 0;
+                  const clDone = cl.steps?.filter((s: any) => s.is_completed)?.length || 0;
+                  const clPercent = clTotal > 0 ? Math.round((clDone / clTotal) * 100) : 0;
+                  const groups = getChecklistGroupProgress(cl);
+
+                  return (
+                    <div key={cl.id} className="rounded-md border bg-muted/30 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{cl.name}</span>
+                          {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground font-medium">{clDone}/{clTotal}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setViewChecklistId(cl.id)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+                            onClick={async () => {
+                              if (!confirm('Checkliste wirklich löschen?')) return;
+                              try {
+                                await supabase.from('job_checklists').delete().eq('id', cl.id);
+                                queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+                                toast.success('Gelöscht.');
+                              } catch { toast.error('Fehler.'); }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Progress value={clPercent} className="h-1.5 flex-1" />
+                        <span className="text-xs text-muted-foreground">{clPercent}%</span>
+                      </div>
+                      {groups.length > 0 && (
+                        <div className="space-y-0.5 mt-1">
+                          {groups.map(g => (
+                            <div key={g.id} className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground truncate flex-1">{g.title}</span>
+                              <Progress value={g.percent} className="h-1 w-16" />
+                              <span className="text-muted-foreground">{g.done}/{g.total}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {hasDateSet ? (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(a.start_date), 'dd.MM.yyyy', { locale: de })}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(a.start_date), 'HH:mm', { locale: de })}
-                          {a.end_date && ` – ${format(new Date(a.end_date), 'HH:mm', { locale: de })}`}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Kein Datum gesetzt</span>
-                    )}
-
-                    {assignments.length > 0 && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>{assignments.map((ass: any) => ass.person_name || 'Unbenannt').join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {requiredFields.length > 0 && (
-                    isFieldsComplete ? (
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )
-                  )}
-                  <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-xs">
-                    {a.status}
-                  </Badge>
-                </div>
+                  );
+                })}
               </div>
-            </CardContent>
-          </CollapsibleTrigger>
+            )}
+          </section>
 
-          <CollapsibleContent>
-            <div className="border-t px-4 py-3 space-y-3 bg-muted/30">
-              {/* Date Picker */}
-              <div className="border-b pb-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Startdatum</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Startzeit</Label>
-                    <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Enddatum</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Endzeit</Label>
-                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
-                  </div>
-                </div>
-                <Button size="sm" className="mt-2 h-7 text-xs" onClick={(e) => { e.stopPropagation(); saveDate(); }} disabled={!startDate || !endDate}>
-                  Datum speichern
-                </Button>
-              </div>
+          {/* Notes */}
+          {a.notes && (
+            <>
+              <Separator />
+              <section>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notizen</h4>
+                <p className="text-sm">{a.notes}</p>
+              </section>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
-              {/* Monteur Assignments */}
-              <div className="border-b pb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" /> Zugewiesene Monteure
-                  </h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs gap-1"
-                    onClick={(e) => { e.stopPropagation(); setShowAddMonteur(true); }}
-                  >
-                    <Plus className="h-3 w-3" /> Monteur zuweisen
-                  </Button>
-                </div>
-                {assignments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Keine Monteure zugeordnet.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {assignments.map((ass: any) => (
-                      <Badge key={ass.id} variant="secondary" className="gap-1 pr-1">
-                        {ass.person_name || 'Unbenannt'}
-                        <button
-                          className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveMonteur(ass.id); }}
-                        >
-                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+  return (
+    <>
+      <div className="rounded-lg border bg-card overflow-hidden">
+        {CollapsedRow}
+        {expanded && ExpandedView}
+      </div>
 
-              {/* Fields */}
-              {fields.length > 0 ? (
-                <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Felder</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {fields.map((f: any) => {
-                      const val = fieldValues[f.id];
-                      const isEmpty = val === undefined || val === null || val === '';
-                      return (
-                        <div key={f.id} className="text-sm">
-                          <span className="text-muted-foreground">
-                            {f.label}
-                            {f.is_required && <span className="text-destructive ml-0.5">*</span>}
-                          </span>
-                          <p className={`font-medium ${isEmpty ? 'text-muted-foreground/50 italic' : ''}`}>
-                            {isEmpty ? '—' : String(val)}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Keine Felder definiert.</p>
-              )}
-
-              {requiredFields.length > 0 && (
-                <div className="flex items-center gap-2 text-xs pt-1 border-t">
-                  {isFieldsComplete ? (
-                    <span className="flex items-center gap-1 text-primary">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Alle Pflichtfelder ausgefüllt
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-destructive">
-                      <AlertCircle className="h-3.5 w-3.5" /> {requiredFields.length - filledRequired.length} Pflichtfeld{requiredFields.length - filledRequired.length !== 1 ? 'er' : ''} offen
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Checklists */}
-              <div className="border-t pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
-                    <CheckSquare className="h-3.5 w-3.5" /> Checklisten
-                  </h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs gap-1"
-                    onClick={(e) => { e.stopPropagation(); setShowAddChecklist(true); }}
-                  >
-                    <Plus className="h-3 w-3" /> Hinzufügen
-                  </Button>
-                </div>
-
-                {checklists.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Keine Checklisten zugeordnet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {checklists.map((cl: any) => {
-                      const clTotal = cl.steps?.length || 0;
-                      const clDone = cl.steps?.filter((s: any) => s.is_completed)?.length || 0;
-                      const clPercent = clTotal > 0 ? Math.round((clDone / clTotal) * 100) : 0;
-
-                      // Group-level progress
-                      const groupSteps = (cl.steps || []).filter((s: any) => s.step_type === 'group');
-                      const nonGroupSteps = (cl.steps || []).filter((s: any) => s.step_type !== 'group' && !s.parent_step_id);
-
-                      return (
-                        <div key={cl.id} className="rounded-md border bg-background p-2.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{cl.name}</span>
-                              {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs text-muted-foreground font-medium">{clDone}/{clTotal}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => { e.stopPropagation(); setViewChecklistId(cl.id); }}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-destructive"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (!confirm('Checkliste wirklich löschen?')) return;
-                                  try {
-                                    await supabase.from('job_checklists').delete().eq('id', cl.id);
-                                    queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
-                                    toast.success('Checkliste gelöscht.');
-                                  } catch { toast.error('Fehler.'); }
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Progress value={clPercent} className="h-1.5 flex-1" />
-                            <span className="text-xs text-muted-foreground">{clPercent}%</span>
-                          </div>
-
-                          {/* Group-level progress */}
-                          {groupSteps.length > 0 && (
-                            <div className="space-y-1 mt-1">
-                              {groupSteps.map((g: any) => {
-                                const children = (cl.steps || []).filter((s: any) => s.parent_step_id === g.id);
-                                const gDone = children.filter((c: any) => c.is_completed).length;
-                                const gTotal = children.length;
-                                const gPercent = gTotal > 0 ? Math.round((gDone / gTotal) * 100) : 0;
-                                return (
-                                  <div key={g.id} className="flex items-center gap-2 text-xs">
-                                    <span className="text-muted-foreground truncate flex-1">{g.title}</span>
-                                    <Progress value={gPercent} className="h-1 w-16" />
-                                    <span className="text-muted-foreground">{gDone}/{gTotal}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {a.notes && (
-                <div className="text-xs border-t pt-2">
-                  <span className="text-muted-foreground font-semibold uppercase">Notizen</span>
-                  <p className="mt-1">{a.notes}</p>
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+      {DetailModal}
 
       {/* Add Checklist Dialog */}
       <Dialog open={showAddChecklist} onOpenChange={setShowAddChecklist}>
