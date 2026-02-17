@@ -563,6 +563,7 @@ export type Database = {
           order_index: number
           parent_step_id: string | null
           photo_url: string | null
+          photo_urls: string[]
           step_type: string
           template_step_id: string | null
           text_value: string | null
@@ -579,6 +580,7 @@ export type Database = {
           order_index?: number
           parent_step_id?: string | null
           photo_url?: string | null
+          photo_urls?: string[]
           step_type?: string
           template_step_id?: string | null
           text_value?: string | null
@@ -595,6 +597,7 @@ export type Database = {
           order_index?: number
           parent_step_id?: string | null
           photo_url?: string | null
+          photo_urls?: string[]
           step_type?: string
           template_step_id?: string | null
           text_value?: string | null
