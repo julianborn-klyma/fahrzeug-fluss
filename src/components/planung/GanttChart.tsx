@@ -438,7 +438,9 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                         />
                         {/* Content */}
                         {bar.isIncomplete && (
-                          <AlertCircle className="h-3 w-3 text-destructive shrink-0 relative pointer-events-none" />
+                          <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-destructive shrink-0 relative pointer-events-none">
+                            <AlertCircle className="h-2.5 w-2.5 text-destructive-foreground" />
+                          </span>
                         )}
                         <span className="font-medium truncate relative pointer-events-none">
                           {bar.job_title}_{bar.type_name}
