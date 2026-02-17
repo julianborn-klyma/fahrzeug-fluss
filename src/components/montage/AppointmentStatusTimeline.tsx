@@ -24,6 +24,15 @@ export function validateAppointmentRequirements(
 ): ValidationResult {
   const warnings: string[] = [];
 
+  // Must have start and end date with assigned monteurs
+  if (!appointment.start_date || !appointment.end_date) {
+    warnings.push('Termin hat kein Start-/Enddatum.');
+  }
+  const assignments = appointment.assignments || [];
+  if (assignments.length === 0) {
+    warnings.push('Keine Monteure zugewiesen.');
+  }
+
   // All required documents must be uploaded
   const reqDocs = appointment.appointment_type?.required_documents || [];
   for (const rd of reqDocs) {

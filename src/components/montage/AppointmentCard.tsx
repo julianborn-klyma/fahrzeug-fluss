@@ -64,7 +64,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
   const fieldValues = a.field_values || {};
   const assignments = a.assignments || [];
   const checklists: any[] = a.checklists || [];
-
+  const currentStatus = (a.status || 'neu') as AppointmentStatus;
   // Check if appointment has missing required documents or no checklists
   const reqDocs = a.appointment_type?.required_documents || [];
   const hasMissingDocs = reqDocs.some((rd: any) => !jobDocuments.some((d: any) => d.document_type_id === rd.document_type_id));
@@ -338,7 +338,9 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
         documents={jobDocuments || []}
         onStatusChange={async (newStatus) => {
           try {
-            await supabase.from('job_appointments').update({ status: newStatus } as any).eq('id', a.id);
+            const updates: any = { status: newStatus };
+            if (newStatus === 'abgenommen') updates.monteur_visible = false;
+            await supabase.from('job_appointments').update(updates).eq('id', a.id);
             queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
             queryClient.invalidateQueries({ queryKey: ['all-job-appointments'] });
             toast.success(`Termin-Status: ${APPOINTMENT_STATUS_LABELS[newStatus]}`);
@@ -349,48 +351,57 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
         {/* LEFT: Date & Monteure */}
         <div className="space-y-3">
           {/* Date */}
-          <div>
-            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Calendar className="h-3 w-3" /> Zeitraum
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[10px] text-muted-foreground">Start</Label>
-                <div className="flex gap-1">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !startDate && "text-muted-foreground")}>
-                        {startDate ? format(startDate, 'dd.MM.yy', { locale: de }) : '—'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-7 text-xs w-20" />
-                </div>
-              </div>
-              <div>
-                <Label className="text-[10px] text-muted-foreground">Ende</Label>
-                <div className="flex gap-1">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !endDate && "text-muted-foreground")}>
-                        {endDate ? format(endDate, 'dd.MM.yy', { locale: de }) : '—'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-7 text-xs w-20" />
-                </div>
-              </div>
+          {currentStatus === 'neu' ? (
+            <div>
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Zeitraum
+              </h4>
+              <p className="text-xs text-muted-foreground italic">Datum kann erst ab Status „In Planung" gesetzt werden.</p>
             </div>
-            <Button size="sm" variant="outline" className="mt-1.5 h-6 text-[10px]" onClick={(e) => { e.stopPropagation(); saveDate(); }} disabled={!startDate || !endDate}>
-              Speichern
-            </Button>
-          </div>
+          ) : (
+            <div>
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Zeitraum
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Start</Label>
+                  <div className="flex gap-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !startDate && "text-muted-foreground")}>
+                          {startDate ? format(startDate, 'dd.MM.yy', { locale: de }) : '—'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-7 text-xs w-20" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Ende</Label>
+                  <div className="flex gap-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("flex-1 justify-start text-left text-xs h-7", !endDate && "text-muted-foreground")}>
+                          {endDate ? format(endDate, 'dd.MM.yy', { locale: de }) : '—'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-7 text-xs w-20" />
+                  </div>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="mt-1.5 h-6 text-[10px]" onClick={(e) => { e.stopPropagation(); saveDate(); }} disabled={!startDate || !endDate}>
+                Speichern
+              </Button>
+            </div>
+          )}
 
           <Separator />
 
@@ -506,10 +517,27 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
             )}
             <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-xs ml-auto">{APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}</Badge>
           </DialogTitle>
-          <div className="flex items-center gap-2 mt-1">
-            <Label className="text-xs text-muted-foreground">Extern</Label>
-            <Switch checked={isInternal} onCheckedChange={toggleInternal} />
-            <Label className="text-xs text-muted-foreground">Intern</Label>
+          <div className="flex items-center gap-4 mt-1">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Extern</Label>
+              <Switch checked={isInternal} onCheckedChange={toggleInternal} />
+              <Label className="text-xs text-muted-foreground">Intern</Label>
+            </div>
+            {currentStatus === 'abgenommen' && (
+              <div className="flex items-center gap-2 ml-auto">
+                <Label className="text-xs text-muted-foreground">Für Monteur sichtbar</Label>
+                <Switch
+                  checked={a.monteur_visible ?? false}
+                  onCheckedChange={async (val) => {
+                    try {
+                      await supabase.from('job_appointments').update({ monteur_visible: val } as any).eq('id', a.id);
+                      queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+                      toast.success(val ? 'Für Monteur sichtbar.' : 'Für Monteur ausgeblendet.');
+                    } catch { toast.error('Fehler.'); }
+                  }}
+                />
+              </div>
+            )}
           </div>
         </DialogHeader>
 
@@ -532,47 +560,53 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
               <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
               </h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Startdatum</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-xs">Startzeit</Label>
-                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
-                </div>
-                <div>
-                  <Label className="text-xs">Enddatum</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-xs">Endzeit</Label>
-                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
-                </div>
-              </div>
-              <Button size="sm" className="mt-2 h-7 text-xs" onClick={saveDate} disabled={!startDate || !endDate}>
-                Datum speichern
-              </Button>
+              {currentStatus === 'neu' ? (
+                <p className="text-xs text-muted-foreground italic">Datum kann erst ab Status „In Planung" gesetzt werden.</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Startdatum</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Startzeit</Label>
+                      <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Enddatum</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Endzeit</Label>
+                      <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
+                    </div>
+                  </div>
+                  <Button size="sm" className="mt-2 h-7 text-xs" onClick={saveDate} disabled={!startDate || !endDate}>
+                    Datum speichern
+                  </Button>
+                </>
+              )}
             </section>
 
             <Separator />
@@ -791,6 +825,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
         checklistId={viewChecklistId}
         open={!!viewChecklistId}
         onOpenChange={(o) => { if (!o) setViewChecklistId(null); }}
+        readonly={currentStatus === 'review' || currentStatus === 'abgenommen'}
       />
     </>
   );
