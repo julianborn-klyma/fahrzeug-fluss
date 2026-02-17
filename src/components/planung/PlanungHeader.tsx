@@ -1,10 +1,18 @@
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, Map, Eye, EyeOff } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronLeft, ChevronRight, Calendar, Map, Eye, EyeOff, Filter } from 'lucide-react';
 import { format, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 export type ViewMode = 'day' | 'week' | 'r4w' | 'month';
 export type RightPanel = 'sidebar' | 'map';
+
+export interface TeamOption {
+  id: string;
+  name: string;
+}
 
 interface Props {
   currentDate: Date;
@@ -17,6 +25,9 @@ interface Props {
   onToggleWeekends: () => void;
   rightPanel: RightPanel;
   onToggleRightPanel: () => void;
+  teams?: TeamOption[];
+  visibleTeamIds?: string[];
+  onVisibleTeamIdsChange?: (ids: string[]) => void;
 }
 
 const PlanungHeader = ({
@@ -24,9 +35,30 @@ const PlanungHeader = ({
   viewMode, onViewModeChange,
   showWeekends, onToggleWeekends,
   rightPanel, onToggleRightPanel,
+  teams = [], visibleTeamIds, onVisibleTeamIdsChange,
 }: Props) => {
   const kw = getISOWeek(currentDate);
   const monthYear = format(currentDate, 'MMMM yyyy', { locale: de });
+
+  const allSelected = !visibleTeamIds || visibleTeamIds.length === teams.length;
+  const someFiltered = visibleTeamIds && visibleTeamIds.length < teams.length;
+
+  const toggleTeam = (id: string) => {
+    if (!onVisibleTeamIdsChange || !visibleTeamIds) return;
+    if (visibleTeamIds.includes(id)) {
+      onVisibleTeamIdsChange(visibleTeamIds.filter(t => t !== id));
+    } else {
+      onVisibleTeamIdsChange([...visibleTeamIds, id]);
+    }
+  };
+
+  const selectAll = () => {
+    onVisibleTeamIdsChange?.(teams.map(t => t.id));
+  };
+
+  const selectNone = () => {
+    onVisibleTeamIdsChange?.([]);
+  };
 
   return (
     <div className="flex items-center justify-between border-b bg-card px-4 py-2 gap-2 flex-wrap">
@@ -45,6 +77,46 @@ const PlanungHeader = ({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Team filter */}
+        {teams.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={someFiltered ? 'secondary' : 'outline'} size="sm" className="h-8">
+                <Filter className="h-3.5 w-3.5 mr-1" />
+                Teams
+                {someFiltered && (
+                  <Badge variant="default" className="ml-1 text-[10px] px-1.5 py-0">
+                    {visibleTeamIds?.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-2">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-xs font-semibold text-muted-foreground">Teams filtern</span>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={selectAll}>Alle</Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={selectNone}>Keine</Button>
+                </div>
+              </div>
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {teams.map(team => (
+                  <label
+                    key={team.id}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer text-sm"
+                  >
+                    <Checkbox
+                      checked={!visibleTeamIds || visibleTeamIds.includes(team.id)}
+                      onCheckedChange={() => toggleTeam(team.id)}
+                    />
+                    <span className="truncate">{team.name}</span>
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
         <div className="flex border rounded-lg overflow-hidden">
           {(['day', 'week', 'r4w', 'month'] as ViewMode[]).map(m => (
             <Button
