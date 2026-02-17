@@ -67,22 +67,31 @@ const AdminJobDetail = () => {
   // Also get all order types' appointment types for manual add
   const allAppTypes = orderTypes.flatMap(ot => (ot.appointment_types || []).filter((at: any) => at.is_active !== false));
 
-  // Collect required documents across all appointment types
-  const requiredDocs: { docTypeName: string; docTypeId: string; appointmentName: string; uploaded: boolean }[] = [];
+  // Collect required documents grouped by appointment, each doc type unique across job
+  const seenDocTypeIds = new Set<string>();
+  const appointmentDocGroups: { appointmentName: string; appointmentId: string; docs: { docTypeName: string; docTypeId: string; uploaded: boolean }[] }[] = [];
   for (const appt of appointments) {
     const reqDocs = appt.appointment_type?.required_documents || [];
+    const groupDocs: { docTypeName: string; docTypeId: string; uploaded: boolean }[] = [];
     for (const rd of reqDocs) {
       const dt = (rd as any).document_types || rd.document_type;
       const docTypeId = rd.document_type_id;
+      if (seenDocTypeIds.has(docTypeId)) continue; // already covered by another appointment
+      seenDocTypeIds.add(docTypeId);
       const uploaded = documents.some(d => d.document_type_id === docTypeId);
-      requiredDocs.push({
-        docTypeName: dt?.name || 'Unbekannt',
-        docTypeId,
-        appointmentName: appt.appointment_type?.name || '',
-        uploaded,
+      groupDocs.push({ docTypeName: dt?.name || 'Unbekannt', docTypeId, uploaded });
+    }
+    if (groupDocs.length > 0) {
+      appointmentDocGroups.push({
+        appointmentName: appt.appointment_type?.name || 'Termin',
+        appointmentId: appt.id,
+        docs: groupDocs,
       });
     }
   }
+  const allRequiredDocs = appointmentDocGroups.flatMap(g => g.docs);
+  const totalRequired = allRequiredDocs.length;
+  const totalUploaded = allRequiredDocs.filter(d => d.uploaded).length;
 
   const handleAddAppointment = async () => {
     if (!selectedAppTypeId || !id) return;
@@ -236,9 +245,9 @@ const AdminJobDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="documents" className="gap-2">
             <FileText className="h-4 w-4" /> Dokumente ({documents.length})
-            {requiredDocs.length > 0 && (
-              <Badge variant={requiredDocs.every(d => d.uploaded) ? 'default' : 'destructive'} className="ml-1 text-xs">
-                {requiredDocs.filter(d => d.uploaded).length}/{requiredDocs.length}
+            {totalRequired > 0 && (
+              <Badge variant={totalUploaded === totalRequired ? 'default' : 'destructive'} className="ml-1 text-xs">
+                {totalUploaded}/{totalRequired}
               </Badge>
             )}
           </TabsTrigger>
@@ -283,34 +292,43 @@ const AdminJobDetail = () => {
             }}
           />
 
-          {requiredDocs.length > 0 && (
-            <div className="space-y-2 mb-4">
-              <h4 className="text-sm font-semibold">Erforderliche Dokumente</h4>
-              {requiredDocs.map((rd, i) => (
-                <div key={i} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    {rd.uploaded ? (
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-destructive" />
-                    )}
-                    <span>{rd.docTypeName}</span>
-                    <span className="text-xs text-muted-foreground">({rd.appointmentName})</span>
-                  </div>
-                  {!rd.uploaded && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 h-7 text-xs"
-                      disabled={uploadDocument.isPending}
-                      onClick={() => {
-                        setUploadingDocTypeId(rd.docTypeId);
-                        reqFileInputRef.current?.click();
-                      }}
-                    >
-                      <Upload className="h-3 w-3" /> Hochladen
-                    </Button>
-                  )}
+          {appointmentDocGroups.length > 0 && (
+            <div className="space-y-4 mb-4">
+              {appointmentDocGroups.map((group) => (
+                <div key={group.appointmentId} className="space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    {group.appointmentName}
+                    <Badge variant={group.docs.every(d => d.uploaded) ? 'default' : 'destructive'} className="text-[10px]">
+                      {group.docs.filter(d => d.uploaded).length}/{group.docs.length}
+                    </Badge>
+                  </h4>
+                  {group.docs.map((rd, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm pl-5">
+                      <div className="flex items-center gap-2">
+                        {rd.uploaded ? (
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span>{rd.docTypeName}</span>
+                      </div>
+                      {!rd.uploaded && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 h-7 text-xs"
+                          disabled={uploadDocument.isPending}
+                          onClick={() => {
+                            setUploadingDocTypeId(rd.docTypeId);
+                            reqFileInputRef.current?.click();
+                          }}
+                        >
+                          <Upload className="h-3 w-3" /> Hochladen
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>

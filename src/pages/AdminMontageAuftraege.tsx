@@ -70,8 +70,19 @@ const AdminMontageAuftraege = () => {
   const getJobAppointments = (jobId: string) => allAppointments.filter((a: any) => a.job_id === jobId);
   const getJobDocuments = (jobId: string) => (allDocuments || []).filter((d: any) => d.job_id === jobId);
 
-  // No validation warnings on simplified job status
-  const isJobWarning = (_job: { id: string; status: JobStatus }) => false;
+  // Warning if any required appointment documents are missing
+  const isJobWarning = (job: { id: string; status: JobStatus }) => {
+    const appts = getJobAppointments(job.id);
+    const docs = getJobDocuments(job.id);
+    for (const appt of appts) {
+      const reqDocs = (appt as any).appointment_type?.required_documents || [];
+      for (const rd of reqDocs) {
+        const docTypeId = rd.document_type_id;
+        if (!docs.some((d: any) => d.document_type_id === docTypeId)) return true;
+      }
+    }
+    return false;
+  };
 
   // Derive available years
   const availableYears = useMemo(() => {
