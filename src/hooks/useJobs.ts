@@ -60,11 +60,28 @@ export const useAssignedJobs = (userId: string | undefined) => {
     queryKey: ['assigned-jobs', userId],
     enabled: !!userId,
     queryFn: async (): Promise<Job[]> => {
+      // Get job IDs where the user is assigned via job_appointment_assignments
+      const { data: assignments } = await supabase
+        .from('job_appointment_assignments')
+        .select('job_appointment_id')
+        .eq('person_id', userId!);
+
+      let appointmentJobIds: string[] = [];
+      if (assignments && assignments.length > 0) {
+        const apptIds = assignments.map(a => a.job_appointment_id);
+        const { data: appts } = await supabase
+          .from('job_appointments')
+          .select('job_id')
+          .in('id', apptIds);
+        appointmentJobIds = [...new Set((appts || []).map(a => a.job_id))];
+      }
+
       const { data, error } = await supabase
         .from('jobs')
         .select('*, properties(*), clients(*), order_types(*), contacts!jobs_contact_person_id_fkey(*), profiles!jobs_planner_id_fkey(*)')
         .order('created_at', { ascending: false });
       if (error) throw error;
+
       return (data || [])
         .map((d: any) => ({
           ...d,
@@ -77,7 +94,7 @@ export const useAssignedJobs = (userId: string | undefined) => {
           contact_person: d.contacts || undefined,
           planner: d.profiles || undefined,
         }))
-        .filter((j: Job) => j.assigned_to.includes(userId!));
+        .filter((j: Job) => j.assigned_to.includes(userId!) || appointmentJobIds.includes(j.id));
     },
   });
 };
