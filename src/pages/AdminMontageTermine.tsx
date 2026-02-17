@@ -27,11 +27,15 @@ import {
 type SortField = 'start_date' | 'status' | 'job_number' | 'appointment_type';
 type SortDir = 'asc' | 'desc';
 
-const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  offen: { label: 'Offen', variant: 'outline' },
-  geplant: { label: 'Geplant', variant: 'secondary' },
-  abgeschlossen: { label: 'Abgeschlossen', variant: 'default' },
-  abgesagt: { label: 'Abgesagt', variant: 'destructive' },
+import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER, type AppointmentStatus } from '@/types/montage';
+
+const STATUS_LABELS: Record<AppointmentStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  neu: { label: 'Neu', variant: 'outline' },
+  in_planung: { label: 'In Planung', variant: 'secondary' },
+  vorbereitet: { label: 'Vorbereitet', variant: 'secondary' },
+  in_umsetzung: { label: 'In Umsetzung', variant: 'secondary' },
+  review: { label: 'Review', variant: 'secondary' },
+  abgenommen: { label: 'Abgenommen', variant: 'default' },
 };
 
 const TERMINE_GROUP_OPTIONS: GroupByOption[] = ['none', 'kw_start', 'month_start', 'kw_end', 'month_end', 'trade'];

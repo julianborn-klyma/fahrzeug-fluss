@@ -550,7 +550,7 @@ export type Database = {
           notes: string
           signature_url: string | null
           start_date: string | null
-          status: string
+          status: Database["public"]["Enums"]["appointment_status"]
         }
         Insert: {
           appointment_type_id: string
@@ -563,7 +563,7 @@ export type Database = {
           notes?: string
           signature_url?: string | null
           start_date?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
         }
         Update: {
           appointment_type_id?: string
@@ -576,7 +576,7 @@ export type Database = {
           notes?: string
           signature_url?: string | null
           start_date?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
         }
         Relationships: [
           {
@@ -1406,6 +1406,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "monteur" | "teamleiter" | "office"
+      appointment_status:
+        | "neu"
+        | "in_planung"
+        | "vorbereitet"
+        | "in_umsetzung"
+        | "review"
+        | "abgenommen"
       job_status:
         | "erstellt"
         | "vorbereitet"
@@ -1419,6 +1426,7 @@ export type Database = {
         | "abgeschlossen"
         | "review"
         | "abgenommen"
+        | "ausfuehrung"
       trade_type: "SHK" | "Elektro" | "Fundament" | "Dach" | "GaLa"
     }
     CompositeTypes: {
@@ -1548,6 +1556,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "monteur", "teamleiter", "office"],
+      appointment_status: [
+        "neu",
+        "in_planung",
+        "vorbereitet",
+        "in_umsetzung",
+        "review",
+        "abgenommen",
+      ],
       job_status: [
         "erstellt",
         "vorbereitet",
@@ -1561,6 +1577,7 @@ export const Constants = {
         "abgeschlossen",
         "review",
         "abgenommen",
+        "ausfuehrung",
       ],
       trade_type: ["SHK", "Elektro", "Fundament", "Dach", "GaLa"],
     },

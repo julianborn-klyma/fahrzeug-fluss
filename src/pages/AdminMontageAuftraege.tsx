@@ -10,10 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle, ListChecks, Filter, Layers } from 'lucide-react';
-import { JOB_STATUS_LABELS, JOB_STATUS_ORDER } from '@/types/montage';
-import type { JobStatus } from '@/types/montage';
+import { JOB_STATUS_LABELS, JOB_STATUS_ORDER, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER } from '@/types/montage';
+import type { JobStatus, AppointmentStatus } from '@/types/montage';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
-import { validateVorbereitetRequirements } from '@/components/montage/JobStatusTimeline';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import {
@@ -30,16 +29,11 @@ import {
 
 const statusColor: Record<JobStatus, string> = {
   neu: 'bg-muted text-muted-foreground',
-  in_planung: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  vorbereitet: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  in_umsetzung: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  review: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  abgenommen: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  ausfuehrung: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   nacharbeiten: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   abgeschlossen: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
 
-const STATUSES_REQUIRING_VALIDATION: JobStatus[] = ['vorbereitet', 'in_umsetzung', 'review', 'abgenommen', 'nacharbeiten', 'abgeschlossen'];
 const JOB_GROUP_OPTIONS: GroupByOption[] = ['none', 'kw_start', 'month_start', 'kw_end', 'month_end'];
 
 const AdminMontageAuftraege = () => {
@@ -76,13 +70,8 @@ const AdminMontageAuftraege = () => {
   const getJobAppointments = (jobId: string) => allAppointments.filter((a: any) => a.job_id === jobId);
   const getJobDocuments = (jobId: string) => (allDocuments || []).filter((d: any) => d.job_id === jobId);
 
-  const isJobWarning = (job: { id: string; status: JobStatus }) => {
-    if (!STATUSES_REQUIRING_VALIDATION.includes(job.status)) return false;
-    const appts = getJobAppointments(job.id);
-    const docs = getJobDocuments(job.id);
-    const validation = validateVorbereitetRequirements(appts, docs);
-    return !validation.valid;
-  };
+  // No validation warnings on simplified job status
+  const isJobWarning = (_job: { id: string; status: JobStatus }) => false;
 
   // Derive available years
   const availableYears = useMemo(() => {
@@ -295,8 +284,8 @@ const AdminMontageAuftraege = () => {
                             ) : (
                               <div className="space-y-2">
                                 {jobAppts.map((appt: any) => {
-                                  const apptName = appt.appointment_types?.name || appt.appointment_type?.name || 'Termin';
-                                  const apptStatus = appt.status || 'offen';
+                                   const apptName = appt.appointment_types?.name || appt.appointment_type?.name || 'Termin';
+                                  const apptStatus = APPOINTMENT_STATUS_LABELS[(appt.status as AppointmentStatus)] || appt.status;
                                   const checklists = appt.checklists || [];
                                   const allSteps = checklists.flatMap((cl: any) => (cl.steps || []).filter((s: any) => s.step_type !== 'group'));
                                   const completedSteps = allSteps.filter((s: any) => s.is_completed);

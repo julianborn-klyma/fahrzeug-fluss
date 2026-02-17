@@ -24,17 +24,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import ChecklistDetailDialog from './ChecklistDetailDialog';
+import AppointmentStatusTimeline from './AppointmentStatusTimeline';
 
 interface AppointmentCardProps {
   appointment: any;
   jobId?: string;
 }
 
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  offen: 'outline',
-  geplant: 'secondary',
-  abgeschlossen: 'default',
-  abgesagt: 'destructive',
+import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER, type AppointmentStatus } from '@/types/montage';
+
+const STATUS_VARIANTS: Record<AppointmentStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  neu: 'outline',
+  in_planung: 'secondary',
+  vorbereitet: 'secondary',
+  in_umsetzung: 'secondary',
+  review: 'secondary',
+  abgenommen: 'default',
 };
 
 const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
@@ -287,8 +292,8 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
       )}
 
       {/* Status */}
-      <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-[10px] shrink-0 ml-auto sm:ml-0">
-        {a.status}
+      <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-[10px] shrink-0 ml-auto sm:ml-0">
+        {APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}
       </Badge>
 
       {/* Detail button */}
@@ -307,7 +312,20 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   // LEVEL 2: Expanded split view
   // ══════════════════════════════════════════
   const ExpandedView = (
-    <div className="border-t bg-muted/20 px-3 py-3">
+    <div className="border-t bg-muted/20 px-3 py-3 space-y-3">
+      {/* Appointment Status Timeline */}
+      <AppointmentStatusTimeline
+        appointment={a}
+        documents={[]}
+        onStatusChange={async (newStatus) => {
+          try {
+            await supabase.from('job_appointments').update({ status: newStatus } as any).eq('id', a.id);
+            queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+            queryClient.invalidateQueries({ queryKey: ['all-job-appointments'] });
+            toast.success(`Termin-Status: ${APPOINTMENT_STATUS_LABELS[newStatus]}`);
+          } catch { toast.error('Fehler.'); }
+        }}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* LEFT: Date & Monteure */}
         <div className="space-y-3">
@@ -467,7 +485,7 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
             {a.appointment_type?.trade && (
               <Badge variant="outline" className="text-xs">{TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}</Badge>
             )}
-            <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-xs ml-auto">{a.status}</Badge>
+            <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-xs ml-auto">{APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}</Badge>
           </DialogTitle>
           <div className="flex items-center gap-2 mt-1">
             <Label className="text-xs text-muted-foreground">Extern</Label>

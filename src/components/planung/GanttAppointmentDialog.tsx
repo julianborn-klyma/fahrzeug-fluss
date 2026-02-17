@@ -32,11 +32,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  offen: 'outline',
-  geplant: 'secondary',
-  abgeschlossen: 'default',
-  abgesagt: 'destructive',
+import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@/types/montage';
+
+const STATUS_VARIANTS: Record<AppointmentStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  neu: 'outline',
+  in_planung: 'secondary',
+  vorbereitet: 'secondary',
+  in_umsetzung: 'secondary',
+  review: 'secondary',
+  abgenommen: 'default',
 };
 
 const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Props) => {
@@ -228,7 +232,7 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange }: Pr
               {a.appointment_type?.trade && (
                 <Badge variant="outline" className="text-xs">{TRADE_LABELS[a.appointment_type.trade as TradeType] || a.appointment_type.trade}</Badge>
               )}
-              <Badge variant={STATUS_VARIANTS[a.status] || 'outline'} className="text-xs ml-auto">{a.status}</Badge>
+              <Badge variant={STATUS_VARIANTS[(a.status as AppointmentStatus)] || 'outline'} className="text-xs ml-auto">{APPOINTMENT_STATUS_LABELS[(a.status as AppointmentStatus)] || a.status}</Badge>
             </DialogTitle>
             <div className="flex items-center gap-2 mt-1">
               <Label className="text-xs text-muted-foreground">Extern</Label>
