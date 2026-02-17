@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle, ListChecks } from 'lucide-react';
 import { JOB_STATUS_LABELS, JOB_STATUS_ORDER } from '@/types/montage';
 import type { JobStatus } from '@/types/montage';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
@@ -153,22 +154,86 @@ const AdminMontageAuftraege = () => {
                       {jobAppts.length === 0 ? (
                         <p className="text-xs text-muted-foreground">Keine Termine vorhanden.</p>
                       ) : (
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           {jobAppts.map((appt: any) => {
-                            const apptName = appt.appointment_types?.name || 'Termin';
+                            const apptName = appt.appointment_types?.name || appt.appointment_type?.name || 'Termin';
                             const apptStatus = appt.status || 'offen';
+                            const checklists = appt.checklists || [];
+
+                            // Calculate overall checklist progress for this appointment
+                            const allSteps = checklists.flatMap((cl: any) => (cl.steps || []).filter((s: any) => s.step_type !== 'group'));
+                            const completedSteps = allSteps.filter((s: any) => s.is_completed);
+                            const totalProgress = allSteps.length > 0 ? Math.round((completedSteps.length / allSteps.length) * 100) : 0;
+
+                            // Build group progress
+                            const groups: { name: string; done: number; total: number }[] = [];
+                            for (const cl of checklists) {
+                              const steps = cl.steps || [];
+                              const groupSteps = steps.filter((s: any) => s.step_type === 'group');
+                              if (groupSteps.length > 0) {
+                                for (const g of groupSteps) {
+                                  const children = steps.filter((s: any) => s.parent_step_id === g.id && s.step_type !== 'group');
+                                  groups.push({
+                                    name: g.title,
+                                    done: children.filter((c: any) => c.is_completed).length,
+                                    total: children.length,
+                                  });
+                                }
+                              } else if (allSteps.length > 0) {
+                                // No groups – show checklist as a whole
+                                const clSteps = steps.filter((s: any) => s.step_type !== 'group');
+                                groups.push({
+                                  name: cl.name || 'Checkliste',
+                                  done: clSteps.filter((s: any) => s.is_completed).length,
+                                  total: clSteps.length,
+                                });
+                              }
+                            }
+
                             return (
-                              <div key={appt.id} className="flex items-center justify-between text-sm bg-background rounded-md p-2 border">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className="text-sm">{apptName}</span>
-                                  {appt.start_date && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {new Date(appt.start_date).toLocaleDateString('de-DE')}
-                                    </span>
-                                  )}
+                              <div key={appt.id} className="bg-background rounded-md border overflow-hidden">
+                                <div className="flex items-center justify-between p-2">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-sm">{apptName}</span>
+                                    {appt.start_date && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(appt.start_date).toLocaleDateString('de-DE')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Badge variant="outline" className="text-xs capitalize">{apptStatus}</Badge>
                                 </div>
-                                <Badge variant="outline" className="text-xs capitalize">{apptStatus}</Badge>
+
+                                {/* Checklist progress */}
+                                {allSteps.length > 0 && (
+                                  <div className="px-2 pb-2 space-y-1.5">
+                                    {/* Overall progress bar */}
+                                    <div className="flex items-center gap-2">
+                                      <ListChecks className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                      <Progress value={totalProgress} className="h-2 flex-1" />
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {completedSteps.length}/{allSteps.length}
+                                      </span>
+                                    </div>
+
+                                    {/* Group breakdown */}
+                                    {groups.length > 1 && (
+                                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 pl-5.5">
+                                        {groups.map((g, gi) => {
+                                          const pct = g.total > 0 ? Math.round((g.done / g.total) * 100) : 0;
+                                          return (
+                                            <div key={gi} className="flex items-center gap-1.5">
+                                              <span className="text-[11px] text-muted-foreground truncate flex-1">{g.name}</span>
+                                              <Progress value={pct} className="h-1.5 w-12 shrink-0" />
+                                              <span className="text-[10px] text-muted-foreground">{g.done}/{g.total}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
