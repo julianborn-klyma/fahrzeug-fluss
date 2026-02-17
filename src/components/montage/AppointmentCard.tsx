@@ -6,13 +6,19 @@ import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Calendar, Clock, ChevronDown, ChevronRight, Users, AlertCircle, CheckCircle2, CheckSquare, Plus, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import ChecklistDetailDialog from './ChecklistDetailDialog';
 
 interface AppointmentCardProps {
   appointment: any;
@@ -30,14 +36,20 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const [open, setOpen] = useState(false);
   const [showAddChecklist, setShowAddChecklist] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [viewChecklist, setViewChecklist] = useState<any>(null);
   const queryClient = useQueryClient();
+
+  // Date picker state
+  const [startDate, setStartDate] = useState<Date | undefined>(a.start_date ? new Date(a.start_date) : undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(a.end_date ? new Date(a.end_date) : undefined);
+  const [startTime, setStartTime] = useState(a.start_date ? format(new Date(a.start_date), 'HH:mm') : '08:00');
+  const [endTime, setEndTime] = useState(a.end_date ? format(new Date(a.end_date), 'HH:mm') : '16:00');
 
   const fields = a.appointment_type?.fields || [];
   const fieldValues = a.field_values || {};
   const assignments = a.assignments || [];
   const checklists: any[] = a.checklists || [];
 
-  // Fetch checklist templates for the add dialog
   const { data: checklistTemplates } = useQuery({
     queryKey: ['checklist-templates-for-add'],
     enabled: showAddChecklist,
@@ -50,7 +62,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
     },
   });
 
-  // Compute field completion status
   const requiredFields = fields.filter((f: any) => f.is_required);
   const filledRequired = requiredFields.filter((f: any) => {
     const val = fieldValues[f.id];
@@ -59,10 +70,26 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
   const isFieldsComplete = requiredFields.length === 0 || filledRequired.length === requiredFields.length;
   const hasDateSet = !!a.start_date && !!a.end_date;
 
-  // Compute total checklist progress
   const totalSteps = checklists.reduce((sum: number, cl: any) => sum + (cl.steps?.length || 0), 0);
   const doneSteps = checklists.reduce((sum: number, cl: any) => sum + (cl.steps?.filter((s: any) => s.is_completed)?.length || 0), 0);
-  const checklistProgress = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+
+  const saveDate = async () => {
+    if (!startDate || !endDate) return;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const sd = new Date(startDate);
+    sd.setHours(sh, sm, 0, 0);
+    const ed = new Date(endDate);
+    ed.setHours(eh, em, 0, 0);
+    try {
+      await supabase.from('job_appointments').update({
+        start_date: sd.toISOString(),
+        end_date: ed.toISOString(),
+      } as any).eq('id', a.id);
+      queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+      toast.success('Datum gespeichert.');
+    } catch { toast.error('Fehler.'); }
+  };
 
   const handleAddChecklist = async () => {
     if (!selectedTemplateId || !jobId) return;
@@ -81,7 +108,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
         .select()
         .single();
       if (error) throw error;
-      // Create steps from template
       const steps = (template.checklist_template_steps || [])
         .sort((a: any, b: any) => a.order_index - b.order_index)
         .map((s: any) => ({
@@ -133,7 +159,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                       )}
                     </div>
 
-                    {/* Date/Time */}
                     {hasDateSet ? (
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -145,15 +170,11 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                           {format(new Date(a.start_date), 'HH:mm', { locale: de })}
                           {a.end_date && ` – ${format(new Date(a.end_date), 'HH:mm', { locale: de })}`}
                         </span>
-                        {a.end_date && format(new Date(a.start_date), 'yyyy-MM-dd') !== format(new Date(a.end_date), 'yyyy-MM-dd') && (
-                          <span className="text-xs">bis {format(new Date(a.end_date), 'dd.MM.yyyy', { locale: de })}</span>
-                        )}
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">Kein Datum gesetzt</span>
                     )}
 
-                    {/* Assigned monteurs */}
                     {assignments.length > 0 && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Users className="h-3 w-3" />
@@ -181,6 +202,54 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
 
           <CollapsibleContent>
             <div className="border-t px-4 py-3 space-y-3 bg-muted/30">
+              {/* Date Picker */}
+              <div className="border-b pb-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" /> Datum & Uhrzeit
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Startdatum</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !startDate && "text-muted-foreground")}>
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {startDate ? format(startDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} className={cn("p-3 pointer-events-auto")} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Startzeit</Label>
+                    <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Enddatum</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left text-xs h-8", !endDate && "text-muted-foreground")}>
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {endDate ? format(endDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} className={cn("p-3 pointer-events-auto")} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Endzeit</Label>
+                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                </div>
+                <Button size="sm" className="mt-2 h-7 text-xs" onClick={(e) => { e.stopPropagation(); saveDate(); }} disabled={!startDate || !endDate}>
+                  Datum speichern
+                </Button>
+              </div>
+
               {/* Fields */}
               {fields.length > 0 ? (
                 <div>
@@ -207,7 +276,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                 <p className="text-xs text-muted-foreground">Keine Felder definiert.</p>
               )}
 
-              {/* Completion summary */}
               {requiredFields.length > 0 && (
                 <div className="flex items-center gap-2 text-xs pt-1 border-t">
                   {isFieldsComplete ? (
@@ -246,6 +314,11 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                       const clTotal = cl.steps?.length || 0;
                       const clDone = cl.steps?.filter((s: any) => s.is_completed)?.length || 0;
                       const clPercent = clTotal > 0 ? Math.round((clDone / clTotal) * 100) : 0;
+
+                      // Group-level progress
+                      const groupSteps = (cl.steps || []).filter((s: any) => s.step_type === 'group');
+                      const nonGroupSteps = (cl.steps || []).filter((s: any) => s.step_type !== 'group' && !s.parent_step_id);
+
                       return (
                         <div key={cl.id} className="rounded-md border bg-background p-2.5 space-y-1.5">
                           <div className="flex items-center justify-between">
@@ -253,12 +326,41 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                               <span className="text-sm font-medium">{cl.name}</span>
                               {cl.trade && <Badge variant="outline" className="text-xs">{cl.trade}</Badge>}
                             </div>
-                            <span className="text-xs text-muted-foreground font-medium">{clDone}/{clTotal}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground font-medium">{clDone}/{clTotal}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => { e.stopPropagation(); setViewChecklist(cl); }}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <Progress value={clPercent} className="h-1.5 flex-1" />
                             <span className="text-xs text-muted-foreground">{clPercent}%</span>
                           </div>
+
+                          {/* Group-level progress */}
+                          {groupSteps.length > 0 && (
+                            <div className="space-y-1 mt-1">
+                              {groupSteps.map((g: any) => {
+                                const children = (cl.steps || []).filter((s: any) => s.parent_step_id === g.id);
+                                const gDone = children.filter((c: any) => c.is_completed).length;
+                                const gTotal = children.length;
+                                const gPercent = gTotal > 0 ? Math.round((gDone / gTotal) * 100) : 0;
+                                return (
+                                  <div key={g.id} className="flex items-center gap-2 text-xs">
+                                    <span className="text-muted-foreground truncate flex-1">{g.title}</span>
+                                    <Progress value={gPercent} className="h-1 w-16" />
+                                    <span className="text-muted-foreground">{gDone}/{gTotal}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -266,7 +368,6 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
                 )}
               </div>
 
-              {/* Notes */}
               {a.notes && (
                 <div className="text-xs border-t pt-2">
                   <span className="text-muted-foreground font-semibold uppercase">Notizen</span>
@@ -299,6 +400,13 @@ const AppointmentCard = ({ appointment: a, jobId }: AppointmentCardProps) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Checklist Detail Dialog */}
+      <ChecklistDetailDialog
+        checklist={viewChecklist}
+        open={!!viewChecklist}
+        onOpenChange={(o) => { if (!o) setViewChecklist(null); }}
+      />
     </>
   );
 };

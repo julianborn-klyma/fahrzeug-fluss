@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import { Label } from '@/components/ui/label';
@@ -24,7 +24,7 @@ const AdminJobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { jobs, loading, updateJob } = useJobs();
-  const { documents, uploadDocument, deleteDocument, getDownloadUrl } = useJobDocuments(id);
+  const { documents, uploadDocument, deleteDocument, renameDocument, getDownloadUrl } = useJobDocuments(id);
   const { appointments, createJobAppointment } = useJobAppointments(id);
   const { orderTypes } = useOrderTypes();
 
@@ -55,6 +55,8 @@ const AdminJobDetail = () => {
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ fileName: string; url: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editDocName, setEditDocName] = useState('');
 
   const job = jobs.find((j) => j.id === id);
 
@@ -311,9 +313,45 @@ const AdminJobDetail = () => {
                 <CardContent className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm truncate">{d.file_name}</span>
-                    {d.document_type && <Badge variant="secondary" className="text-xs">{d.document_type.name}</Badge>}
-                    {d.trade && <Badge variant="outline" className="text-xs">{d.trade}</Badge>}
+                    {editingDocId === d.id ? (
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <Input
+                          value={editDocName}
+                          onChange={(e) => setEditDocName(e.target.value)}
+                          className="h-7 text-sm"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              renameDocument.mutateAsync({ id: d.id, fileName: editDocName.trim() }).then(() => {
+                                setEditingDocId(null);
+                                toast.success('Name geändert.');
+                              }).catch(() => toast.error('Fehler.'));
+                            }
+                            if (e.key === 'Escape') setEditingDocId(null);
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                          renameDocument.mutateAsync({ id: d.id, fileName: editDocName.trim() }).then(() => {
+                            setEditingDocId(null);
+                            toast.success('Name geändert.');
+                          }).catch(() => toast.error('Fehler.'));
+                        }}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDocId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm truncate">{d.file_name}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => { setEditingDocId(d.id); setEditDocName(d.file_name); }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                    {d.document_type && <Badge variant="secondary" className="text-xs shrink-0">{d.document_type.name}</Badge>}
+                    {d.trade && <Badge variant="outline" className="text-xs shrink-0">{d.trade}</Badge>}
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {

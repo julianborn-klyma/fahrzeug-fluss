@@ -9,8 +9,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Trash2, Plus, GripVertical, ChevronRight, CheckSquare, Type, Camera, FolderOpen } from 'lucide-react';
+import { Trash2, Plus, GripVertical, ChevronRight, CheckSquare, Type, Camera, FolderOpen, Pencil, Check, X } from 'lucide-react';
 import { useChecklistTemplates } from '@/hooks/useChecklistTemplates';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const STEP_TYPES = [
@@ -36,6 +37,8 @@ const EditChecklistDialog: React.FC<Props> = ({ template, open, onOpenChange, ap
   const [isStandard, setIsStandard] = useState(template?.is_standard || false);
   const [templateId, setTemplateId] = useState<string | null>(template?.id || null);
   const [steps, setSteps] = useState<any[]>(template?.steps || []);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
 
   // New step form
   const [showNewStep, setShowNewStep] = useState(false);
@@ -96,6 +99,17 @@ const EditChecklistDialog: React.FC<Props> = ({ template, open, onOpenChange, ap
       await deleteStep.mutateAsync(id);
       setSteps(steps.filter((s: any) => s.id !== id && s.parent_step_id !== id));
       toast.success('Schritt gelöscht.');
+    } catch { toast.error('Fehler.'); }
+  };
+
+  const handleRenameGroup = async (stepId: string, newTitle: string) => {
+    if (!newTitle.trim()) return;
+    try {
+      const { error } = await supabase.from('checklist_template_steps').update({ title: newTitle.trim() } as any).eq('id', stepId);
+      if (error) throw error;
+      setSteps(steps.map(s => s.id === stepId ? { ...s, title: newTitle.trim() } : s));
+      setEditingGroupId(null);
+      toast.success('Gruppe umbenannt.');
     } catch { toast.error('Fehler.'); }
   };
 
@@ -170,7 +184,33 @@ const EditChecklistDialog: React.FC<Props> = ({ template, open, onOpenChange, ap
                           <div className="flex items-center gap-2">
                             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-90" />
                             <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{step.title}</span>
+                            {editingGroupId === step.id ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <Input
+                                  value={editGroupName}
+                                  onChange={(e) => setEditGroupName(e.target.value)}
+                                  className="h-7 text-sm w-40"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenameGroup(step.id, editGroupName);
+                                    if (e.key === 'Escape') setEditingGroupId(null);
+                                  }}
+                                />
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRenameGroup(step.id, editGroupName); }}>
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingGroupId(null); }}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="text-sm font-medium">{step.title}</span>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingGroupId(step.id); setEditGroupName(step.title); }}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
                             <Badge variant="outline" className="text-xs">Gruppe</Badge>
                           </div>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }}>
