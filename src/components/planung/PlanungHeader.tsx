@@ -61,20 +61,21 @@ const PlanungHeader = ({
   };
 
   return (
-    <div className="flex items-center justify-between border-b bg-card px-4 py-2 gap-2 flex-wrap">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPrev}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={onToday}>
-          <Calendar className="h-4 w-4 mr-1" />Heute
-        </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <span className="font-semibold text-sm">KW {kw}</span>
-        <span className="text-sm text-muted-foreground capitalize">{monthYear}</span>
-      </div>
+    <div className="flex flex-col border-b bg-card">
+      <div className="flex items-center justify-between px-4 py-2 gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPrev}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={onToday}>
+            <Calendar className="h-4 w-4 mr-1" />Heute
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="font-semibold text-sm">KW {kw}</span>
+          <span className="text-sm text-muted-foreground capitalize">{monthYear}</span>
+        </div>
 
       <div className="flex items-center gap-2">
         {/* Team filter */}
@@ -145,6 +146,25 @@ const PlanungHeader = ({
           <Map className="h-3.5 w-3.5 mr-1" />
           Karte
         </Button>
+      </div>
+    </div>
+
+      {/* Status Legend */}
+      <div className="flex items-center gap-3 px-4 py-1 border-t bg-muted/20">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase">Status:</span>
+        {[
+          { key: 'neu', label: 'Neu', color: 'bg-muted-foreground/50' },
+          { key: 'in_planung', label: 'In Planung', color: 'bg-blue-400' },
+          { key: 'vorbereitet', label: 'Vorbereitet', color: 'bg-amber-400' },
+          { key: 'in_umsetzung', label: 'In Umsetzung', color: 'bg-orange-400' },
+          { key: 'review', label: 'Review', color: 'bg-purple-400' },
+          { key: 'abgenommen', label: 'Abgenommen', color: 'bg-green-500' },
+        ].map(s => (
+          <div key={s.key} className="flex items-center gap-1">
+            <span className={`h-2.5 w-2.5 rounded-full ${s.color}`} />
+            <span className="text-[10px] text-muted-foreground">{s.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
