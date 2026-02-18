@@ -123,10 +123,11 @@ const AdminMontagePlanung = () => {
       const ids = appts.map(a => a.id);
       const jobIds = [...new Set(appts.map(a => a.job_id))];
 
-      const [assignRes, checkRes, docRes] = await Promise.all([
+      const [assignRes, checkRes, docRes, checkStepsRes] = await Promise.all([
         supabase.from('job_appointment_assignments').select('*').in('job_appointment_id', ids),
         supabase.from('job_checklists').select('id, appointment_id').in('appointment_id', ids),
         supabase.from('job_documents').select('id, job_id, document_type_id').in('job_id', jobIds),
+        supabase.from('job_checklists').select('id, appointment_id, name, job_checklist_steps(id, is_completed, parent_step_id, step_type, title)').in('appointment_id', ids),
       ]);
 
       const assignments = assignRes.data || [];
@@ -134,6 +135,22 @@ const AdminMontagePlanung = () => {
       for (const cl of (checkRes.data || [])) {
         const apptId = (cl as any).appointment_id;
         if (apptId) checklistsByAppt[apptId] = (checklistsByAppt[apptId] || 0) + 1;
+      }
+
+      // Build checklist group progress per appointment
+      const checklistGroupsByAppt: Record<string, { title: string; done: number; total: number }[]> = {};
+      for (const cl of (checkStepsRes.data || [])) {
+        const apptId = (cl as any).appointment_id;
+        if (!apptId) continue;
+        const steps = ((cl as any).job_checklist_steps || []);
+        const groupSteps = steps.filter((s: any) => s.step_type === 'group');
+        for (const g of groupSteps) {
+          const children = steps.filter((s: any) => s.parent_step_id === g.id);
+          if (children.length === 0) continue;
+          const done = children.filter((c: any) => c.is_completed).length;
+          if (!checklistGroupsByAppt[apptId]) checklistGroupsByAppt[apptId] = [];
+          checklistGroupsByAppt[apptId].push({ title: g.title, done, total: children.length });
+        }
       }
       const docsByJob: Record<string, any[]> = {};
       for (const d of (docRes.data || [])) {
@@ -169,6 +186,8 @@ const AdminMontagePlanung = () => {
             trade: (appt.appointment_types as any)?.trade || null,
             job_id: appt.job_id,
             isIncomplete,
+            status: appt.status,
+            checklistGroups: checklistGroupsByAppt[appt.id] || [],
           });
         }
       }

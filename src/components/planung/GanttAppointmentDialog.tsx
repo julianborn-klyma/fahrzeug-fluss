@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Calendar, Users, CheckSquare, Plus, Eye, Trash2, X, ExternalLink,
-  AlertCircle, CheckCircle2, MapPin,
+  AlertCircle, MapPin,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -24,6 +24,7 @@ import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import ChecklistDetailDialog from '@/components/montage/ChecklistDetailDialog';
+import AppointmentFieldsEditor from '@/components/montage/AppointmentFieldsEditor';
 
 interface Props {
   appointmentId: string | null;
@@ -391,38 +392,12 @@ const GanttAppointmentDialog = ({ appointmentId, jobId, open, onOpenChange, onSh
               {/* Fields */}
               <section>
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Felder</h4>
-                {fields.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      {fields.map((f: any) => {
-                        const val = fieldValues[f.id];
-                        const isEmpty = val === undefined || val === null || val === '';
-                        return (
-                          <div key={f.id} className="text-sm">
-                            <span className="text-muted-foreground text-xs">
-                              {f.label}
-                              {f.is_required && <span className="text-destructive ml-0.5">*</span>}
-                            </span>
-                            <p className={cn("font-medium text-sm", isEmpty && "text-muted-foreground/50 italic")}>
-                              {isEmpty ? '—' : String(val)}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {requiredFields.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs mt-2">
-                        {isFieldsComplete ? (
-                          <span className="flex items-center gap-1 text-primary"><CheckCircle2 className="h-3.5 w-3.5" /> Alle Pflichtfelder ausgefüllt</span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-destructive"><AlertCircle className="h-3.5 w-3.5" /> {requiredFields.length - filledRequired.length} offen</span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">Keine Felder definiert.</p>
-                )}
+                <AppointmentFieldsEditor
+                  appointmentId={a.id}
+                  fields={fields}
+                  fieldValues={fieldValues as Record<string, any>}
+                  readonly={a.status === 'abgenommen'}
+                />
               </section>
 
               {a.notes && (

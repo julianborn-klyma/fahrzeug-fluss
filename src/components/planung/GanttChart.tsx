@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronDown, ChevronRight, Users, User, AlertCircle } from 'lucide-react';
 import { format, isToday, isWeekend, differenceInCalendarDays, startOfDay, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -25,6 +26,8 @@ export interface GanttBar {
   trade: string | null;
   job_id: string;
   isIncomplete?: boolean;
+  status?: string;
+  checklistGroups?: { title: string; done: number; total: number }[];
 }
 
 interface Props {
@@ -43,6 +46,24 @@ const TRADE_CLASSES: Record<string, string> = {
   Fundament: 'bg-trade-fundament border-trade-fundament-border text-trade-fundament-text',
   Dach: 'bg-trade-dach border-trade-dach-border text-trade-dach-text',
   GaLa: 'bg-trade-gala border-trade-gala-border text-trade-gala-text',
+};
+
+const STATUS_BORDER_COLORS: Record<string, string> = {
+  neu: 'ring-1 ring-muted-foreground/30',
+  in_planung: 'ring-1 ring-blue-400/60',
+  vorbereitet: 'ring-1 ring-amber-400/60',
+  in_umsetzung: 'ring-1 ring-orange-400/60',
+  review: 'ring-1 ring-purple-400/60',
+  abgenommen: 'ring-1 ring-green-500/60',
+};
+
+const STATUS_DOT_COLORS: Record<string, string> = {
+  neu: 'bg-muted-foreground/50',
+  in_planung: 'bg-blue-400',
+  vorbereitet: 'bg-amber-400',
+  in_umsetzung: 'bg-orange-400',
+  review: 'bg-purple-400',
+  abgenommen: 'bg-green-500',
 };
 
 const ROW_HEIGHT = 48; // h-12 = 48px
@@ -411,12 +432,18 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                       ? BAR_GAP + lane * (BAR_HALF + BAR_GAP)
                       : (ROW_HEIGHT - BAR_FULL) / 2;
 
-                    return (
+                    const statusRing = STATUS_BORDER_COLORS[bar.status || ''] || '';
+                    const statusDot = STATUS_DOT_COLORS[bar.status || ''] || 'bg-muted-foreground/50';
+                    const groups = bar.checklistGroups || [];
+                    const hasGroups = groups.length > 0;
+
+                    const barContent = (
                       <div
                         key={bar.id}
                         className={cn(
                           'absolute rounded-md border text-xs px-1.5 flex items-center gap-1 z-10 shadow-sm transition-shadow truncate group',
                           tradeClass,
+                          statusRing,
                           isPreview && 'opacity-70 ring-2 ring-primary',
                         )}
                         style={{
@@ -436,6 +463,8 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                           }}
                           onClick={() => { if (!wasDragged.current) onBarClick?.(bar); }}
                         />
+                        {/* Status dot */}
+                        <span className={cn('h-2 w-2 rounded-full shrink-0 relative pointer-events-none', statusDot)} />
                         {/* Content */}
                         {bar.isIncomplete && (
                           <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-destructive shrink-0 relative pointer-events-none">
@@ -445,6 +474,12 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                         <span className="font-medium truncate relative pointer-events-none">
                           {bar.job_title}_{bar.type_name}
                         </span>
+                        {/* Checklist mini indicator */}
+                        {hasGroups && (
+                          <span className="text-[9px] opacity-70 shrink-0 pointer-events-none ml-auto">
+                            {groups.reduce((s, g) => s + g.done, 0)}/{groups.reduce((s, g) => s + g.total, 0)}
+                          </span>
+                        )}
                         {/* Resize handle (right edge) */}
                         <div
                           className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 rounded-r-md"
@@ -454,6 +489,31 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                           }}
                         />
                       </div>
+                    );
+
+                    if (!hasGroups) return <span key={bar.id}>{barContent}</span>;
+
+                    return (
+                      <TooltipProvider key={bar.id} delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {barContent}
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs space-y-1 max-w-60">
+                            {groups.map((g, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="truncate flex-1">{g.title}</span>
+                                <span className={cn(
+                                  'font-medium',
+                                  g.done === g.total ? 'text-green-500' : 'text-muted-foreground',
+                                )}>
+                                  {g.done}/{g.total}
+                                </span>
+                              </div>
+                            ))}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     );
                   })}
                 </div>
