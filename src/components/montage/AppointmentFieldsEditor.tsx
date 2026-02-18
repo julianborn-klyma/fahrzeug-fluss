@@ -85,12 +85,18 @@ const AppointmentFieldsEditor = ({ appointmentId, fields, fieldValues, readonly 
               {f.label}
               {f.is_required && <span className="text-destructive ml-0.5">*</span>}
             </Label>
-            <Select value={val?.toString() || ''} onValueChange={(v) => updateValue(f.id, v)}>
+            <Select value={val?.toString() || '__empty__'} onValueChange={(v) => updateValue(f.id, v === '__empty__' ? '' : v)}>
               <SelectTrigger className="h-8 text-xs mt-1">
                 <SelectValue placeholder={f.placeholder || 'Wählen…'} />
               </SelectTrigger>
-              <SelectContent>
-                {(Array.isArray(f.options) ? f.options : []).map((opt: any) => (
+              <SelectContent className="z-[200] bg-popover">
+                <SelectItem value="__empty__">— Keine Auswahl —</SelectItem>
+                {(Array.isArray(f.options) ? f.options : [])
+                  .filter((opt: any) => {
+                    const v = typeof opt === 'string' ? opt : opt?.value;
+                    return v !== undefined && v !== null && v !== '';
+                  })
+                  .map((opt: any) => (
                   <SelectItem key={typeof opt === 'string' ? opt : opt.value} value={typeof opt === 'string' ? opt : opt.value}>
                     {typeof opt === 'string' ? opt : opt.label}
                   </SelectItem>
