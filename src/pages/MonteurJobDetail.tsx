@@ -9,6 +9,7 @@ import MonteurBottomNav from '@/components/MonteurBottomNav';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import ChecklistStepDetailSheet from '@/components/montage/ChecklistStepDetailSheet';
 import SignaturePadDialog from '@/components/montage/SignaturePadDialog';
+import AppointmentFieldsEditor from '@/components/montage/AppointmentFieldsEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -194,6 +195,33 @@ const MonteurJobDetail = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Appointment Fields */}
+                {appointments.filter((appt: any) => {
+                  const fields = appt.appointment_type?.fields || [];
+                  return fields.length > 0;
+                }).map((appt: any) => {
+                  const fields = appt.appointment_type?.fields || [];
+                  const isApptReadonly = !!job && (
+                    job.status === 'abgeschlossen' ||
+                    (job.status as string) === 'review' ||
+                    appt.status === 'review' || appt.status === 'abgenommen'
+                  );
+                  return (
+                    <div key={appt.id} className="mt-4 space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        {appt.appointment_type?.name || 'Termin'} – Felder
+                      </h4>
+                      <AppointmentFieldsEditor
+                        appointmentId={appt.id}
+                        fields={fields}
+                        fieldValues={appt.field_values || {}}
+                        readonly={isApptReadonly}
+                      />
+                    </div>
+                  );
+                })}
               </TabsContent>
 
               <TabsContent value="documents">
