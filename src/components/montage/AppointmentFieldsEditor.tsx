@@ -45,6 +45,8 @@ const AppointmentFieldsEditor = ({ appointmentId, fields, fieldValues, readonly 
         .eq('id', appointmentId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['job-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['gantt-appointment-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['planung-scheduled'] });
       toast.success('Felder gespeichert.');
     } catch {
       toast.error('Fehler beim Speichern.');
