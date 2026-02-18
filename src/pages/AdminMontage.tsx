@@ -7,7 +7,7 @@ const AdminMontage = () => {
 
   // Redirect /admin/montage to /admin/montage/auftraege
   if (location.pathname === '/admin/montage') {
-    return <Navigate to="/admin/montage/auftraege" replace />;
+    return <Navigate to="/admin/montage/planung" replace />;
   }
 
   return (
