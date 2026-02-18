@@ -31,7 +31,7 @@ const LoginPage = () => {
       if (hasAdminAccess && isMonteur) {
         navigate('/role-select', { replace: true });
       } else if (hasAdminAccess) {
-        navigate('/admin', { replace: true });
+        navigate('/admin/montage/planung', { replace: true });
       } else {
         navigate('/vehicles', { replace: true });
       }

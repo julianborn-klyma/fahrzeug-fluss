@@ -27,7 +27,7 @@ const RoleSelectPage = () => {
         <div className="space-y-3">
           <Card
             className="cursor-pointer transition-all hover:border-primary/40 hover:shadow-sm active:scale-[0.99]"
-            onClick={() => navigate('/admin', { replace: true })}>
+            onClick={() => navigate('/admin/montage/planung', { replace: true })}>
 
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
