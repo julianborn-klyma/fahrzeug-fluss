@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, GripVertical } from 'lucide-react';
+import { Trash2, Plus, GripVertical, Pencil, X } from 'lucide-react';
 import { useAppointmentTypeFields, useAppointmentTypeDocuments, useDocumentTypes } from '@/hooks/useAppointmentTypes';
 import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,11 +24,69 @@ const FIELD_TYPES = [
   { value: 'photo', label: 'Foto-Upload' },
 ];
 
+interface FieldFormState {
+  label: string;
+  field_type: string;
+  placeholder: string;
+  is_required: boolean;
+  width: string;
+  options: string;
+}
+
+const emptyFieldForm: FieldFormState = {
+  label: '', field_type: 'text', placeholder: '', is_required: false, width: 'half', options: '',
+};
+
 interface Props {
   appointmentType: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const FieldForm = ({ form, onChange, onSave, onCancel, saveLabel }: {
+  form: FieldFormState;
+  onChange: (f: FieldFormState) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saveLabel: string;
+}) => (
+  <Card>
+    <CardContent className="p-4 space-y-3">
+      <div><Label>Bezeichnung</Label><Input value={form.label} onChange={(e) => onChange({ ...form, label: e.target.value })} /></div>
+      <div>
+        <Label>Feldtyp</Label>
+        <Select value={form.field_type} onValueChange={(v) => onChange({ ...form, field_type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FIELD_TYPES.map(ft => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {form.field_type === 'dropdown' && (
+        <div><Label>Optionen (kommagetrennt)</Label><Input value={form.options} onChange={(e) => onChange({ ...form, options: e.target.value })} placeholder="Option 1, Option 2, ..." /></div>
+      )}
+      <div><Label>Platzhalter</Label><Input value={form.placeholder} onChange={(e) => onChange({ ...form, placeholder: e.target.value })} /></div>
+      <div className="flex items-center justify-between">
+        <Label>Pflichtfeld</Label>
+        <Switch checked={form.is_required} onCheckedChange={(v) => onChange({ ...form, is_required: v })} />
+      </div>
+      <div>
+        <Label>Breite</Label>
+        <Select value={form.width} onValueChange={(v) => onChange({ ...form, width: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="half">Halbe Breite</SelectItem>
+            <SelectItem value="full">Volle Breite</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onCancel} className="flex-1">Abbrechen</Button>
+        <Button onClick={onSave} className="flex-1">{saveLabel}</Button>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -36,23 +94,16 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
   const { documents, addDocument, removeDocument } = useAppointmentTypeDocuments(appointmentType.id);
   const { data: docTypes } = useDocumentTypes();
 
-  // Settings state
   const [name, setName] = useState(appointmentType.name);
   const [description, setDescription] = useState(appointmentType.description || '');
-  
   const [isInternal, setIsInternal] = useState(appointmentType.is_internal);
   const [isActive, setIsActive] = useState(appointmentType.is_active !== false);
 
-  // New field state
   const [showNewField, setShowNewField] = useState(false);
-  const [newFieldLabel, setNewFieldLabel] = useState('');
-  const [newFieldType, setNewFieldType] = useState('text');
-  const [newFieldPlaceholder, setNewFieldPlaceholder] = useState('');
-  const [newFieldRequired, setNewFieldRequired] = useState(false);
-  const [newFieldWidth, setNewFieldWidth] = useState('half');
-  const [newFieldOptions, setNewFieldOptions] = useState('');
+  const [newForm, setNewForm] = useState<FieldFormState>(emptyFieldForm);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<FieldFormState>(emptyFieldForm);
 
-  // Doc add
   const [selectedDocTypeId, setSelectedDocTypeId] = useState('');
 
   const handleSaveSettings = async () => {
@@ -66,26 +117,48 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
   };
 
   const handleAddField = async () => {
-    if (!newFieldLabel.trim()) return;
-    const options = newFieldType === 'dropdown' ? newFieldOptions.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (!newForm.label.trim()) return;
+    const options = newForm.field_type === 'dropdown' ? newForm.options.split(',').map(s => s.trim()).filter(Boolean) : [];
     try {
       await upsertField.mutateAsync({
         appointment_type_id: appointmentType.id,
-        label: newFieldLabel.trim(),
-        field_type: newFieldType,
-        placeholder: newFieldPlaceholder,
-        is_required: newFieldRequired,
-        width: newFieldWidth,
+        label: newForm.label.trim(),
+        field_type: newForm.field_type,
+        placeholder: newForm.placeholder,
+        is_required: newForm.is_required,
+        width: newForm.width,
         options: JSON.stringify(options),
         display_order: fields.length,
       });
       setShowNewField(false);
-      setNewFieldLabel('');
-      setNewFieldPlaceholder('');
-      setNewFieldRequired(false);
-      setNewFieldType('text');
-      setNewFieldOptions('');
+      setNewForm(emptyFieldForm);
       toast.success('Feld hinzugefügt.');
+    } catch { toast.error('Fehler.'); }
+  };
+
+  const startEditField = (f: any) => {
+    const opts = Array.isArray(f.options) ? f.options.map((o: any) => typeof o === 'string' ? o : o.value).join(', ') : '';
+    setEditingFieldId(f.id);
+    setEditForm({ label: f.label, field_type: f.field_type, placeholder: f.placeholder || '', is_required: f.is_required, width: f.width, options: opts });
+    setShowNewField(false);
+  };
+
+  const handleUpdateField = async () => {
+    if (!editingFieldId || !editForm.label.trim()) return;
+    const options = editForm.field_type === 'dropdown' ? editForm.options.split(',').map(s => s.trim()).filter(Boolean) : [];
+    try {
+      await upsertField.mutateAsync({
+        id: editingFieldId,
+        appointment_type_id: appointmentType.id,
+        label: editForm.label.trim(),
+        field_type: editForm.field_type,
+        placeholder: editForm.placeholder,
+        is_required: editForm.is_required,
+        width: editForm.width,
+        options: JSON.stringify(options),
+      });
+      setEditingFieldId(null);
+      toast.success('Feld aktualisiert.');
     } catch { toast.error('Fehler.'); }
   };
 
@@ -129,67 +202,41 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
 
           <TabsContent value="fields" className="space-y-3 mt-4">
             {fields.map((f: any) => (
-              <Card key={f.id}>
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{f.label}</span>
-                    <Badge variant="outline" className="text-xs">{FIELD_TYPES.find(ft => ft.value === f.field_type)?.label || f.field_type}</Badge>
-                    {f.is_required && <Badge className="text-xs">Pflicht</Badge>}
-                    <Badge variant="secondary" className="text-xs">{f.width === 'full' ? 'Volle Breite' : 'Halbe Breite'}</Badge>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
-                    await deleteField.mutateAsync(f.id);
-                    toast.success('Feld gelöscht.');
-                  }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
+              editingFieldId === f.id ? (
+                <FieldForm key={f.id} form={editForm} onChange={setEditForm} onSave={handleUpdateField} onCancel={() => setEditingFieldId(null)} saveLabel="Aktualisieren" />
+              ) : (
+                <Card key={f.id}>
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{f.label}</span>
+                      <Badge variant="outline" className="text-xs">{FIELD_TYPES.find(ft => ft.value === f.field_type)?.label || f.field_type}</Badge>
+                      {f.is_required && <Badge className="text-xs">Pflicht</Badge>}
+                      <Badge variant="secondary" className="text-xs">{f.width === 'full' ? 'Volle Breite' : 'Halbe Breite'}</Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditField(f)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                        await deleteField.mutateAsync(f.id);
+                        toast.success('Feld gelöscht.');
+                      }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
             ))}
 
-            {!showNewField ? (
+            {!showNewField && !editingFieldId ? (
               <Button variant="outline" className="w-full gap-2" onClick={() => setShowNewField(true)}>
                 <Plus className="h-4 w-4" /> Neues Feld
               </Button>
-            ) : (
-              <Card>
-                <CardContent className="p-4 space-y-3">
-                  <div><Label>Bezeichnung</Label><Input value={newFieldLabel} onChange={(e) => setNewFieldLabel(e.target.value)} /></div>
-                  <div>
-                    <Label>Feldtyp</Label>
-                    <Select value={newFieldType} onValueChange={setNewFieldType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {FIELD_TYPES.map(ft => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {newFieldType === 'dropdown' && (
-                    <div><Label>Optionen (kommagetrennt)</Label><Input value={newFieldOptions} onChange={(e) => setNewFieldOptions(e.target.value)} placeholder="Option 1, Option 2, ..." /></div>
-                  )}
-                  <div><Label>Platzhalter</Label><Input value={newFieldPlaceholder} onChange={(e) => setNewFieldPlaceholder(e.target.value)} /></div>
-                  <div className="flex items-center justify-between">
-                    <Label>Pflichtfeld</Label>
-                    <Switch checked={newFieldRequired} onCheckedChange={setNewFieldRequired} />
-                  </div>
-                  <div>
-                    <Label>Breite</Label>
-                    <Select value={newFieldWidth} onValueChange={setNewFieldWidth}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="half">Halbe Breite</SelectItem>
-                        <SelectItem value="full">Volle Breite</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setShowNewField(false)} className="flex-1">Abbrechen</Button>
-                    <Button onClick={handleAddField} className="flex-1">Hinzufügen</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            ) : showNewField ? (
+              <FieldForm form={newForm} onChange={setNewForm} onSave={handleAddField} onCancel={() => { setShowNewField(false); setNewForm(emptyFieldForm); }} saveLabel="Hinzufügen" />
+            ) : null}
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-3 mt-4">
