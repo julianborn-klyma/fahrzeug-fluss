@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Pencil, Trash2, X, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props { pricebookId: string | null; }
@@ -29,7 +31,10 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
   const [form, setForm] = useState({ name: '', article_number: '', description: '', category_id: '' });
   const [items, setItemsState] = useState<ItemRow[]>([]);
   const [overrideVk, setOverrideVk] = useState<string>('');
-
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerFilter, setPickerFilter] = useState('');
+  const [pickerCategory, setPickerCategory] = useState<string>('__all__');
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set());
   // For editing: load items
   const editPkgId = dialog.pkg?.id || null;
   const { data: existingItems = [] } = usePackageItems(editPkgId);
@@ -99,11 +104,41 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
     setDialog({ open: true, pkg });
   };
 
-  const addItem = () => setItemsState(prev => [...prev, { product_id: '', quantity: 1 }]);
-  const removeItem = (idx: number) => setItemsState(prev => prev.filter((_, i) => i !== idx));
-  const updateItem = (idx: number, field: keyof ItemRow, val: any) => {
-    setItemsState(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  const openPicker = () => {
+    setPickerSelected(new Set(items.map(i => i.product_id).filter(Boolean)));
+    setPickerFilter('');
+    setPickerCategory('__all__');
+    setPickerOpen(true);
   };
+
+  const confirmPicker = () => {
+    const existingMap = new Map(items.map(i => [i.product_id, i.quantity]));
+    const newItems: ItemRow[] = [];
+    pickerSelected.forEach(pid => {
+      newItems.push({ product_id: pid, quantity: existingMap.get(pid) || 1 });
+    });
+    setItemsState(newItems);
+    setPickerOpen(false);
+  };
+
+  const togglePickerProduct = (pid: string) => {
+    setPickerSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(pid)) next.delete(pid); else next.add(pid);
+      return next;
+    });
+  };
+
+  const filteredPickerProducts = useMemo(() => {
+    return products.filter((p: any) => {
+      if (pickerCategory !== '__all__' && p.category_id !== pickerCategory) return false;
+      if (pickerFilter) {
+        const q = pickerFilter.toLowerCase();
+        return p.name.toLowerCase().includes(q) || (p.article_number || '').toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [products, pickerCategory, pickerFilter]);
 
   const save = async () => {
     if (!form.name.trim()) return;
@@ -209,22 +244,31 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
 
             <div className="border-t pt-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Produkte im Paket</p>
-                <Button size="sm" variant="outline" onClick={addItem} className="gap-1"><Plus className="h-3.5 w-3.5" />Produkt hinzufügen</Button>
+                <p className="text-sm font-semibold">Produkte im Paket ({items.length})</p>
+                <Button size="sm" variant="outline" onClick={openPicker} className="gap-1"><Plus className="h-3.5 w-3.5" />Produkte auswählen</Button>
               </div>
-              {items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <Select value={item.product_id || '__none__'} onValueChange={v => updateItem(idx, 'product_id', v === '__none__' ? '' : v)}>
-                    <SelectTrigger className="flex-1"><SelectValue placeholder="Produkt wählen" /></SelectTrigger>
-                    <SelectContent className="z-[200] bg-popover">
-                      <SelectItem value="__none__">– Produkt wählen –</SelectItem>
-                      {products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.article_number ? `${p.article_number} – ` : ''}{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input type="number" min={1} step={1} className="w-20" value={item.quantity} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} />
-                  <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><X className="h-4 w-4" /></Button>
+              {items.length > 0 && (
+                <div className="space-y-2">
+                  {items.map((item, idx) => {
+                    const prod = productMap[item.product_id];
+                    if (!prod) return null;
+                    return (
+                      <div key={item.product_id} className="flex items-center gap-2 rounded-md border p-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{prod.article_number ? `${prod.article_number} – ` : ''}{prod.name}</p>
+                          <p className="text-xs text-muted-foreground">EK: {fmtEur(getProductEK(item.product_id))} € · VK: {fmtEur(getProductVK(item.product_id))} €</p>
+                        </div>
+                        <Input
+                          type="number" min={1} step={1} className="w-20"
+                          value={item.quantity}
+                          onChange={e => setItemsState(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Number(e.target.value) } : it))}
+                        />
+                        <Button variant="ghost" size="icon" onClick={() => setItemsState(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
               {items.length === 0 && <p className="text-xs text-muted-foreground">Noch keine Produkte hinzugefügt.</p>}
             </div>
 
@@ -250,6 +294,57 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog({ open: false })}>Abbrechen</Button>
             <Button onClick={save} disabled={upsertPkg.isPending}>Speichern</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Picker Modal */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader><DialogTitle>Produkte auswählen</DialogTitle></DialogHeader>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suchen…"
+                value={pickerFilter}
+                onChange={e => setPickerFilter(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Select value={pickerCategory} onValueChange={setPickerCategory}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Kategorie" /></SelectTrigger>
+              <SelectContent className="z-[300] bg-popover">
+                <SelectItem value="__all__">Alle Kategorien</SelectItem>
+                {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <ScrollArea className="flex-1 border rounded-md">
+            <div className="divide-y">
+              {filteredPickerProducts.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground text-center">Keine Produkte gefunden</p>
+              )}
+              {filteredPickerProducts.map((p: any) => (
+                <label key={p.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                  <Checkbox
+                    checked={pickerSelected.has(p.id)}
+                    onCheckedChange={() => togglePickerProduct(p.id)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.article_number || '–'} · VK: {fmtEur(getProductVK(p.id))} €</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <p className="text-sm text-muted-foreground">{pickerSelected.size} ausgewählt</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPickerOpen(false)}>Abbrechen</Button>
+              <Button onClick={confirmPicker}>Übernehmen</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
