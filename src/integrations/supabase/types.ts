@@ -183,6 +183,7 @@ export type Database = {
           half_year_bonus_pool: number
           id: string
           module_fahrzeuglager_enabled: boolean
+          module_kalkulation_enabled: boolean
           module_klyma_os_enabled: boolean
           module_performance_enabled: boolean
           require_approval: boolean
@@ -201,6 +202,7 @@ export type Database = {
           half_year_bonus_pool?: number
           id?: string
           module_fahrzeuglager_enabled?: boolean
+          module_kalkulation_enabled?: boolean
           module_klyma_os_enabled?: boolean
           module_performance_enabled?: boolean
           require_approval?: boolean
@@ -219,6 +221,7 @@ export type Database = {
           half_year_bonus_pool?: number
           id?: string
           module_fahrzeuglager_enabled?: boolean
+          module_kalkulation_enabled?: boolean
           module_klyma_os_enabled?: boolean
           module_performance_enabled?: boolean
           require_approval?: boolean
@@ -913,6 +916,255 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_package_items: {
+        Row: {
+          created_at: string
+          id: string
+          package_id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          package_id: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          package_id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulation_package_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_package_prices: {
+        Row: {
+          created_at: string
+          custom_override_vk: number | null
+          id: string
+          package_id: string
+          pricebook_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_override_vk?: number | null
+          id?: string
+          package_id: string
+          pricebook_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_override_vk?: number | null
+          id?: string
+          package_id?: string
+          pricebook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_package_prices_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulation_package_prices_pricebook_id_fkey"
+            columns: ["pricebook_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_pricebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_packages: {
+        Row: {
+          article_number: string
+          category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          name: string
+        }
+        Insert: {
+          article_number?: string
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          article_number?: string
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_packages_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_pricebooks: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      kalkulation_product_prices: {
+        Row: {
+          calculation_factor: number
+          created_at: string
+          final_vk: number
+          hourly_rate: number
+          id: string
+          material_cost: number
+          pricebook_id: string
+          product_id: string
+          time_budget: number
+        }
+        Insert: {
+          calculation_factor?: number
+          created_at?: string
+          final_vk?: number
+          hourly_rate?: number
+          id?: string
+          material_cost?: number
+          pricebook_id: string
+          product_id: string
+          time_budget?: number
+        }
+        Update: {
+          calculation_factor?: number
+          created_at?: string
+          final_vk?: number
+          hourly_rate?: number
+          id?: string
+          material_cost?: number
+          pricebook_id?: string
+          product_id?: string
+          time_budget?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_product_prices_pricebook_id_fkey"
+            columns: ["pricebook_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_pricebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulation_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulation_products: {
+        Row: {
+          article_number: string
+          category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          name: string
+        }
+        Insert: {
+          article_number?: string
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          article_number?: string
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_categories"
             referencedColumns: ["id"]
           },
         ]

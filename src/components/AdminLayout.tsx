@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase } from 'lucide-react';
+import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase, Calculator } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AdminLayoutProps {
@@ -19,10 +19,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const perfEnabled = !isOffice && (settings?.module_performance_enabled ?? true);
   const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
   const montageEnabled = !isOffice && (settings?.module_klyma_os_enabled ?? true);
+  const kalkulationEnabled = settings?.module_kalkulation_enabled ?? true;
   const isSettings = location.pathname.startsWith('/admin/settings');
   const isPerformance = location.pathname.startsWith('/admin/performance');
   const isMontage = location.pathname.startsWith('/admin/montage');
-  const isDashboard = !isSettings && !isPerformance && !isMontage;
+  const isKalkulation = location.pathname.startsWith('/admin/kalkulation');
+  const isDashboard = !isSettings && !isPerformance && !isMontage && !isKalkulation;
 
   const handleLogout = async () => {
     await signOut();
@@ -45,6 +47,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 >
                   <Briefcase className="h-4 w-4" />
                   Montage
+                </Button>
+              )}
+              {kalkulationEnabled && (
+                <Button
+                  variant={isKalkulation ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => navigate('/admin/kalkulation')}
+                  className="gap-2"
+                >
+                  <Calculator className="h-4 w-4" />
+                  Kalkulation
                 </Button>
               )}
               {lagerEnabled && (

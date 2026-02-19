@@ -15,6 +15,7 @@ export interface BonusSettings {
   module_performance_enabled: boolean;
   module_fahrzeuglager_enabled: boolean;
   module_klyma_os_enabled: boolean;
+  module_kalkulation_enabled: boolean;
 }
 
 interface BonusSettingsContextType {
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: Omit<BonusSettings, 'id'> = {
   module_performance_enabled: true,
   module_fahrzeuglager_enabled: true,
   module_klyma_os_enabled: true,
+  module_kalkulation_enabled: true,
 };
 
 const BonusSettingsContext = createContext<BonusSettingsContextType | undefined>(undefined);
@@ -69,6 +71,7 @@ export const BonusSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         module_performance_enabled: (data as any).module_performance_enabled ?? true,
         module_fahrzeuglager_enabled: (data as any).module_fahrzeuglager_enabled ?? true,
         module_klyma_os_enabled: (data as any).module_klyma_os_enabled ?? true,
+        module_kalkulation_enabled: (data as any).module_kalkulation_enabled ?? true,
       });
     }
     setLoading(false);

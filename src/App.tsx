@@ -46,6 +46,7 @@ const MonteurPerformance = lazyRetry(() => import("./pages/MonteurPerformance"))
 const DownloadPage = lazyRetry(() => import("./pages/DownloadPage"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 const SourceExport = lazyRetry(() => import("./pages/SourceExport"));
+const AdminKalkulation = lazyRetry(() => import("./pages/AdminKalkulation"));
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,11 @@ const App = () => (
                   <Route path="/admin/settings" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminSettings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/kalkulation" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminKalkulation />
                     </ProtectedRoute>
                   } />
                   <Route path="/performance" element={
