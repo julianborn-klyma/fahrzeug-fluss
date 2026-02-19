@@ -193,6 +193,17 @@ export function usePackageItems(packageId: string | null) {
   });
 }
 
+export function useAllPackageItems() {
+  return useQuery({
+    queryKey: ['kalkulation-all-package-items'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('kalkulation_package_items' as any).select('*');
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+}
+
 export function useSetPackageItems() {
   const qc = useQueryClient();
   return useMutation({
