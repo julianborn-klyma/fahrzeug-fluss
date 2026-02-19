@@ -359,6 +359,22 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
               </h4>
               <p className="text-xs text-muted-foreground italic">Datum kann erst ab Status „In Planung" gesetzt werden.</p>
             </div>
+          ) : currentStatus === 'abgenommen' ? (
+            <div>
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Zeitraum
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Start</Label>
+                  <p className="text-xs">{a.start_date ? format(new Date(a.start_date), 'dd.MM.yy HH:mm', { locale: de }) : '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Ende</Label>
+                  <p className="text-xs">{a.end_date ? format(new Date(a.end_date), 'dd.MM.yy HH:mm', { locale: de }) : '—'}</p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div>
               <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">

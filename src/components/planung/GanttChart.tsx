@@ -460,8 +460,9 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                       >
                         {/* Move handle (entire bar) */}
                         <div
-                          className="absolute inset-0 cursor-grab active:cursor-grabbing"
+                          className={cn("absolute inset-0", bar.status !== 'abgenommen' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer')}
                           onMouseDown={e => {
+                            if (bar.status === 'abgenommen') return;
                             const gridEl = (e.currentTarget.closest('[data-grid-row]') as HTMLElement);
                             if (gridEl) handleBarMouseDown(e, bar, 'move', gridEl, member.user_id, member.name);
                           }}
@@ -485,13 +486,15 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                           </span>
                         )}
                         {/* Resize handle (right edge) */}
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 rounded-r-md"
-                          onMouseDown={e => {
-                            const gridEl = (e.currentTarget.closest('[data-grid-row]') as HTMLElement);
-                            if (gridEl) handleBarMouseDown(e, bar, 'resize-end', gridEl, member.user_id, member.name);
-                          }}
-                        />
+                        {bar.status !== 'abgenommen' && (
+                          <div
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 rounded-r-md"
+                            onMouseDown={e => {
+                              const gridEl = (e.currentTarget.closest('[data-grid-row]') as HTMLElement);
+                              if (gridEl) handleBarMouseDown(e, bar, 'resize-end', gridEl, member.user_id, member.name);
+                            }}
+                          />
+                        )}
                       </div>
                     );
 

@@ -106,13 +106,15 @@ const MonteurJobDetail = () => {
       const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(filePath);
       const signatureUrl = urlData?.publicUrl || filePath;
 
-      // Update all non-abgenommen appointments with the signature and set to review
+      // Update all non-abgenommen appointments with the signature, set to review, and stamp end_date
+      const now = new Date().toISOString();
       const apptToUpdate = appointments.filter((a: any) => a.status !== 'abgenommen');
       for (const appt of apptToUpdate) {
         await updateJobAppointment.mutateAsync({
           id: appt.id,
           status: 'review',
           signature_url: signatureUrl,
+          end_date: now,
         } as any);
       }
 
