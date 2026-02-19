@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { usePackages, useUpsertPackage, useDeletePackage, usePackageItems, useSetPackageItems, usePackagePrices, useUpsertPackagePrice, useProducts, useProductPrices, useCategories } from '@/hooks/useKalkulation';
+import { usePackages, useUpsertPackage, useDeletePackage, usePackageItems, useSetPackageItems, usePackagePrices, useUpsertPackagePrice, useProducts, useProductPrices, useCategories, useAllPackageItems } from '@/hooks/useKalkulation';
 import { calcEK, fmtEur } from '@/lib/kalkulation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,7 +24,7 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
   const deletePkg = useDeletePackage();
   const setItems = useSetPackageItems();
   const upsertPkgPrice = useUpsertPackagePrice();
-
+  const { data: allPkgItems = [] } = useAllPackageItems();
   const [dialog, setDialog] = useState<{ open: boolean; pkg?: any }>({ open: false });
   const [form, setForm] = useState({ name: '', article_number: '', description: '', category_id: '' });
   const [items, setItemsState] = useState<ItemRow[]>([]);
@@ -59,6 +59,16 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
     products.forEach((p: any) => { m[p.id] = p; });
     return m;
   }, [products]);
+
+  // Group all package items by package_id for table sums
+  const allItemsByPkg = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    allPkgItems.forEach((i: any) => {
+      if (!m[i.package_id]) m[i.package_id] = [];
+      m[i.package_id].push(i);
+    });
+    return m;
+  }, [allPkgItems]);
 
   const getProductEK = (productId: string) => {
     const pp = productPriceMap[productId];
@@ -144,24 +154,29 @@ const KalkulationPackages = ({ pricebookId }: Props) => {
             <TableRow>
               <TableHead>Art.-Nr.</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead className="text-right">VK</TableHead>
+              <TableHead className="text-right">EK</TableHead>
+              <TableHead className="text-right">VK (Summe)</TableHead>
+              <TableHead className="text-right">VK (Final)</TableHead>
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {packages.length === 0 && (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Keine Pakete</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Keine Pakete</TableCell></TableRow>
             )}
             {packages.map((pkg: any) => {
               const pp = packagePriceMap[pkg.id];
-              const hasOverride = pp?.custom_override_vk != null;
+              const pkgItems = allItemsByPkg[pkg.id] || [];
+              const sumEK = pkgItems.reduce((s: number, i: any) => s + getProductEK(i.product_id) * Number(i.quantity), 0);
+              const sumVK = pkgItems.reduce((s: number, i: any) => s + getProductVK(i.product_id) * Number(i.quantity), 0);
+              const finalVK = pp?.custom_override_vk != null ? Number(pp.custom_override_vk) : sumVK;
               return (
                 <TableRow key={pkg.id}>
                   <TableCell className="font-mono text-xs">{pkg.article_number || '–'}</TableCell>
                   <TableCell className="font-medium">{pkg.name}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {hasOverride ? fmtEur(Number(pp.custom_override_vk)) + ' €' : '–'}
-                  </TableCell>
+                  <TableCell className="text-right">{fmtEur(sumEK)} €</TableCell>
+                  <TableCell className="text-right">{fmtEur(sumVK)} €</TableCell>
+                  <TableCell className="text-right font-medium">{fmtEur(finalVK)} €</TableCell>
                   <TableCell className="flex gap-1 justify-end">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(pkg)}><Pencil className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(pkg.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>

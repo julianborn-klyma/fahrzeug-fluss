@@ -43,12 +43,8 @@ const AdminKalkulation = () => {
           )}
         </div>
 
-        <Tabs defaultValue="pricebooks" className="space-y-4">
+        <Tabs defaultValue="products" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="pricebooks" className="gap-2">
-              <BookOpen className="h-4 w-4" />
-              Preisbücher
-            </TabsTrigger>
             <TabsTrigger value="products" className="gap-2">
               <Package className="h-4 w-4" />
               Produkte
@@ -57,16 +53,20 @@ const AdminKalkulation = () => {
               <ShoppingCart className="h-4 w-4" />
               Pakete
             </TabsTrigger>
+            <TabsTrigger value="pricebooks" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Preisbücher
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pricebooks">
-            <KalkulationPricebooks />
-          </TabsContent>
           <TabsContent value="products">
             <KalkulationProducts pricebookId={activePb} />
           </TabsContent>
           <TabsContent value="packages">
             <KalkulationPackages pricebookId={activePb} />
+          </TabsContent>
+          <TabsContent value="pricebooks">
+            <KalkulationPricebooks />
           </TabsContent>
         </Tabs>
       </div>
