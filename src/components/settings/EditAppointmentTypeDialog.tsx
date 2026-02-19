@@ -127,7 +127,7 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
         placeholder: newForm.placeholder,
         is_required: newForm.is_required,
         width: newForm.width,
-        options: JSON.stringify(options),
+        options: options,
         display_order: fields.length,
       });
       setShowNewField(false);
@@ -137,7 +137,11 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
   };
 
   const startEditField = (f: any) => {
-    const opts = Array.isArray(f.options) ? f.options.map((o: any) => typeof o === 'string' ? o : o.value).join(', ') : '';
+    let rawOpts = f.options;
+    if (typeof rawOpts === 'string') {
+      try { rawOpts = JSON.parse(rawOpts); } catch { rawOpts = []; }
+    }
+    const opts = Array.isArray(rawOpts) ? rawOpts.map((o: any) => typeof o === 'string' ? o : o.value).join(', ') : '';
     setEditingFieldId(f.id);
     setEditForm({ label: f.label, field_type: f.field_type, placeholder: f.placeholder || '', is_required: f.is_required, width: f.width, options: opts });
     setShowNewField(false);
@@ -155,7 +159,7 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
         placeholder: editForm.placeholder,
         is_required: editForm.is_required,
         width: editForm.width,
-        options: JSON.stringify(options),
+        options: options,
       });
       setEditingFieldId(null);
       toast.success('Feld aktualisiert.');
