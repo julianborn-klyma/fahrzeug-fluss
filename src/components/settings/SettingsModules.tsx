@@ -1,7 +1,7 @@
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Trophy, Warehouse, Briefcase } from 'lucide-react';
+import { Trophy, Warehouse, Briefcase, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SettingsModules = () => {
@@ -9,8 +9,9 @@ const SettingsModules = () => {
   const perfEnabled = settings?.module_performance_enabled ?? true;
   const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
   const klymaOsEnabled = settings?.module_klyma_os_enabled ?? true;
+  const kalkulationEnabled = settings?.module_kalkulation_enabled ?? true;
 
-  const toggle = async (field: 'module_performance_enabled' | 'module_fahrzeuglager_enabled' | 'module_klyma_os_enabled', current: boolean, label: string) => {
+  const toggle = async (field: 'module_performance_enabled' | 'module_fahrzeuglager_enabled' | 'module_klyma_os_enabled' | 'module_kalkulation_enabled', current: boolean, label: string) => {
     try {
       await updateSettings({ [field]: !current });
       toast.success(`${label} ${!current ? 'aktiviert' : 'deaktiviert'}. Seite wird neu geladen…`);
@@ -27,6 +28,13 @@ const SettingsModules = () => {
       label: 'Klyma OS',
       description: 'Aufträge, Termine, Dokumente und Checklisten für Montage-Projekte.',
       icon: Briefcase,
+    },
+    {
+      field: 'module_kalkulation_enabled' as const,
+      enabled: kalkulationEnabled,
+      label: 'Kalkulation',
+      description: 'Produkte, Pakete und Preisbücher für Kalkulationen.',
+      icon: Calculator,
     },
     {
       field: 'module_fahrzeuglager_enabled' as const,
