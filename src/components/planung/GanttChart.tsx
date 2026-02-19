@@ -302,7 +302,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
     <div className="flex-1 overflow-auto border-r select-none">
       {/* Day headers */}
       <div className="flex sticky top-0 bg-card z-20 border-b">
-        <div className="w-52 shrink-0 border-r p-2 text-xs font-semibold text-muted-foreground">
+        <div className="w-52 shrink-0 border-r p-2 text-xs font-semibold text-muted-foreground sticky left-0 bg-card z-10">
           Teams & Mitarbeiter
         </div>
         <div className="flex-1 grid" style={colStyle}>
@@ -346,7 +346,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
             className="flex border-b bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => setCollapsed(p => ({ ...p, [team.id]: !p[team.id] }))}
           >
-            <div className="w-52 shrink-0 border-r p-2 flex items-center gap-2">
+            <div className="w-52 shrink-0 border-r p-2 flex items-center gap-2 sticky left-0 bg-muted/30 z-10">
               {collapsed[team.id]
                 ? <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
@@ -392,7 +392,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                 data-person-id={member.user_id}
                 data-person-name={member.name}
               >
-                <div className="w-52 shrink-0 border-r p-2 pl-9 flex items-center gap-2" style={{ minHeight: rowH }}>
+                <div className="w-52 shrink-0 border-r p-2 pl-9 flex items-center gap-2 sticky left-0 bg-card z-10" style={{ minHeight: rowH }}>
                   <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm truncate">{member.name || 'Unbenannt'}</span>
                 </div>
