@@ -346,7 +346,7 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
             className="flex border-b bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => setCollapsed(p => ({ ...p, [team.id]: !p[team.id] }))}
           >
-            <div className="w-52 shrink-0 border-r p-2 flex items-center gap-2 sticky left-0 bg-muted/30 z-10">
+            <div className="w-52 shrink-0 border-r p-2 flex items-center gap-2 sticky left-0 bg-muted z-10">
               {collapsed[team.id]
                 ? <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
