@@ -142,9 +142,13 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
   const getBarIndices = useCallback((bar: GanttBar) => {
     const start = startOfDay(new Date(bar.start_date));
     const end = bar.end_date ? startOfDay(new Date(bar.end_date)) : start;
-    const startIdx = Math.max(0, differenceInCalendarDays(start, viewStart));
-    const endIdx = Math.min(totalDays - 1, differenceInCalendarDays(end, viewStart));
-    if (endIdx < 0 || startIdx >= totalDays) return null;
+    const rawStartIdx = differenceInCalendarDays(start, viewStart);
+    const rawEndIdx = differenceInCalendarDays(end, viewStart);
+    // Bar is completely outside the visible range
+    if (rawEndIdx < 0 || rawStartIdx >= totalDays) return null;
+    // Clamp to visible range so bars spanning multiple weeks show partially
+    const startIdx = Math.max(0, rawStartIdx);
+    const endIdx = Math.min(totalDays - 1, rawEndIdx);
     return { startIdx, endIdx };
   }, [viewStart, totalDays]);
 
