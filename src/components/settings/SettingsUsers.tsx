@@ -30,6 +30,8 @@ import {
 import { Plus, Pencil, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { useBonusSettings } from '@/context/BonusSettingsContext';
+import { ALL_MODULES, MODULE_LABELS, saveUserModuleAccess, type ModuleKey } from '@/hooks/useModuleAccess';
 
 interface Team {
   id: string;
@@ -56,6 +58,7 @@ const SettingsUsers = () => {
   const { vehicles, assignments, addAssignment, removeAssignment } = useData();
   const { toast } = useToast();
   const { hasRole: currentUserHasRole } = useAuth();
+  const { settings } = useBonusSettings();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -84,6 +87,9 @@ const SettingsUsers = () => {
   const [assignUserId, setAssignUserId] = useState('');
   const [assignVehicleId, setAssignVehicleId] = useState('');
 
+  // Per-user module access
+  const [allModuleAccess, setAllModuleAccess] = useState<Record<string, string[]>>({});
+  const [editModules, setEditModules] = useState<string[]>([]);
   const fetchUsers = async () => {
     setLoading(true);
     const { data: profiles } = await supabase.from('profiles').select('user_id, name, email, team_id, address_street, address_postal_code, address_city, address_lat, address_lng');
@@ -118,6 +124,17 @@ const SettingsUsers = () => {
     const { data: tAssigns } = await supabase.from('teamleiter_monteur_assignments').select('id, teamleiter_id, monteur_id');
     setTeamleiterAssignments(tAssigns || []);
 
+    // Fetch module access
+    const { data: modAccess } = await supabase.from('user_module_access' as any).select('user_id, module');
+    const modMap: Record<string, string[]> = {};
+    if (modAccess) {
+      for (const row of modAccess as any[]) {
+        if (!modMap[row.user_id]) modMap[row.user_id] = [];
+        modMap[row.user_id].push(row.module);
+      }
+    }
+    setAllModuleAccess(modMap);
+
     setLoading(false);
   };
 
@@ -143,6 +160,7 @@ const SettingsUsers = () => {
       office: user.roles.includes('office'),
     });
     setRoleDialogOpen(true);
+    setEditModules(allModuleAccess[user.user_id] || []);
   };
 
   const saveRoles = async () => {
@@ -209,6 +227,9 @@ const SettingsUsers = () => {
         await supabase.from('user_roles').insert({ user_id: userId, role: r as any });
       }
     }
+
+    // Save module access
+    await saveUserModuleAccess(userId, editModules);
 
     toast({ title: 'Benutzer aktualisiert' });
     setRoleDialogOpen(false);
@@ -491,6 +512,31 @@ const SettingsUsers = () => {
               />
               <label htmlFor="role-monteur" className="text-sm font-medium">Monteur</label>
             </div>
+            {/* Module access (whitelist) – only show for non-admin users */}
+            {!selectedRoles.admin && (
+              <>
+                <h4 className="text-sm font-medium text-muted-foreground pt-2">Modul-Zugriff</h4>
+                <p className="text-xs text-muted-foreground">Admins sehen immer alle Module. Für andere Benutzer hier freischalten.</p>
+                {ALL_MODULES.filter(m => {
+                  // Only show modules that are globally enabled
+                  if (!settings) return false;
+                  return (settings as any)[m] === true;
+                }).map(moduleKey => (
+                  <div key={moduleKey} className="flex items-center gap-3">
+                    <Checkbox
+                      id={`mod-${moduleKey}`}
+                      checked={editModules.includes(moduleKey)}
+                      onCheckedChange={(c) => {
+                        setEditModules(prev =>
+                          c ? [...prev, moduleKey] : prev.filter(m => m !== moduleKey)
+                        );
+                      }}
+                    />
+                    <label htmlFor={`mod-${moduleKey}`} className="text-sm font-medium">{MODULE_LABELS[moduleKey]}</label>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>Abbrechen</Button>

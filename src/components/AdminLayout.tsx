@@ -4,6 +4,7 @@ import { useBonusSettings } from '@/context/BonusSettingsContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase, Calculator } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useMyModuleAccess } from '@/hooks/useModuleAccess';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -12,14 +13,24 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user, signOut, hasRole } = useAuth();
   const { settings } = useBonusSettings();
+  const { data: myModules = [] } = useMyModuleAccess();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isOffice = hasRole('office') && !hasRole('admin') && !hasRole('teamleiter');
-  const perfEnabled = !isOffice && (settings?.module_performance_enabled ?? true);
-  const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
-  const montageEnabled = !isOffice && (settings?.module_klyma_os_enabled ?? true);
-  const kalkulationEnabled = settings?.module_kalkulation_enabled ?? true;
+  const isAdmin = hasRole('admin');
+  const isOffice = hasRole('office') && !isAdmin && !hasRole('teamleiter');
+
+  // Module visible = globally enabled AND (user is admin OR user has explicit access)
+  const canSee = (moduleKey: string, globalEnabled: boolean) => {
+    if (!globalEnabled) return false;
+    if (isAdmin) return true;
+    return myModules.includes(moduleKey);
+  };
+
+  const perfEnabled = !isOffice && canSee('module_performance_enabled', settings?.module_performance_enabled ?? true);
+  const lagerEnabled = canSee('module_fahrzeuglager_enabled', settings?.module_fahrzeuglager_enabled ?? true);
+  const montageEnabled = !isOffice && canSee('module_klyma_os_enabled', settings?.module_klyma_os_enabled ?? true);
+  const kalkulationEnabled = canSee('module_kalkulation_enabled', settings?.module_kalkulation_enabled ?? true);
   const isSettings = location.pathname.startsWith('/admin/settings');
   const isPerformance = location.pathname.startsWith('/admin/performance');
   const isMontage = location.pathname.startsWith('/admin/montage');
