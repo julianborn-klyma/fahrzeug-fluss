@@ -12,14 +12,24 @@ import SettingsModules from '@/components/settings/SettingsModules';
 import SettingsOrderTypes from '@/components/settings/SettingsOrderTypes';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useMyModuleAccess } from '@/hooks/useModuleAccess';
 
 const AdminSettings = () => {
   const { hasRole } = useAuth();
   const { settings } = useBonusSettings();
-  const isOffice = hasRole('office') && !hasRole('admin') && !hasRole('teamleiter');
-  const perfEnabled = !isOffice && (settings?.module_performance_enabled ?? true);
-  const lagerEnabled = settings?.module_fahrzeuglager_enabled ?? true;
-  const klymaOsEnabled = !isOffice && (settings?.module_klyma_os_enabled ?? true);
+  const { data: myModules = [] } = useMyModuleAccess();
+  const isAdmin = hasRole('admin');
+  const isOffice = hasRole('office') && !isAdmin && !hasRole('teamleiter');
+
+  const canSee = (moduleKey: string, globalEnabled: boolean) => {
+    if (!globalEnabled) return false;
+    if (isAdmin) return true;
+    return myModules.includes(moduleKey);
+  };
+
+  const perfEnabled = !isOffice && canSee('module_performance_enabled', settings?.module_performance_enabled ?? true);
+  const lagerEnabled = canSee('module_fahrzeuglager_enabled', settings?.module_fahrzeuglager_enabled ?? true);
+  const klymaOsEnabled = !isOffice && canSee('module_klyma_os_enabled', settings?.module_klyma_os_enabled ?? true);
   const [lagerSubTab, setLagerSubTab] = useState<'inventory' | 'vehicles' | 'vehicleTypes'>('inventory');
   const [userSubTab, setUserSubTab] = useState<'users' | 'teams'>('users');
 
