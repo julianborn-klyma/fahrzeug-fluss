@@ -114,8 +114,8 @@ const AdminMontagePlanung = () => {
         .from('job_appointments')
         .select('id, start_date, end_date, status, appointment_type_id, job_id, field_values, appointment_types(name, trade, appointment_type_fields(*), appointment_type_documents(document_type_id)), jobs(title, job_number)')
         .not('start_date', 'is', null)
-        .gte('start_date', dateRange.from + 'T00:00:00')
         .lte('start_date', dateRange.to + 'T23:59:59')
+        .or(`end_date.gte.${dateRange.from}T00:00:00,end_date.is.null`)
         .in('status', ['neu', 'in_planung', 'vorbereitet', 'in_umsetzung', 'review', 'abgenommen']);
 
       if (!appts?.length) return [];
