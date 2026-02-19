@@ -296,7 +296,8 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
     window.addEventListener('mouseup', handleMouseUp);
   }, [getBarIndices, getDayWidth, idxToPosition, totalDays, days, findPersonAtY, onBarChange]);
 
-  const colStyle = { gridTemplateColumns: `repeat(${totalDays}, minmax(80px, 1fr))` };
+  const gridMinWidth = totalDays * 80;
+  const colStyle = { gridTemplateColumns: `repeat(${totalDays}, minmax(80px, 1fr))`, minWidth: gridMinWidth };
 
   return (
     <div className="flex-1 overflow-auto border-r select-none">
