@@ -5,9 +5,10 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 import SyncStatusBar from '@/components/SyncStatusBar';
 import MonteurBottomNav from '@/components/MonteurBottomNav';
-import { Truck, LogOut, ChevronRight, ArrowRightLeft } from 'lucide-react';
+import { Truck, LogOut, ChevronRight, ArrowRightLeft, Star } from 'lucide-react';
 
 const MonteurVehicleSelect = () => {
   const { user, signOut, hasRole } = useAuth();
@@ -84,7 +85,15 @@ const MonteurVehicleSelect = () => {
                     <Truck className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">{vehicle.license_plate}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-foreground">{vehicle.license_plate}</p>
+                      {vehicle.owner_id === user?.id && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-0.5">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          Inhaber
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{vType?.name || ''}</p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />

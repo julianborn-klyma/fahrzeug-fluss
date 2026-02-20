@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import SyncStatusBar from '@/components/SyncStatusBar';
 import StepperInput from '@/components/StepperInput';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, X, Lock } from 'lucide-react';
 
 const MonteurInventoryCheck = () => {
   const { vehicleId } = useParams<{ vehicleId: string }>();
@@ -32,6 +32,9 @@ const MonteurInventoryCheck = () => {
   }
 
   const filteredMaterials = materialsForType.filter(m => m.category === selectedCategory).sort((a, b) => a.sort_order - b.sort_order);
+
+  const isOwner = vehicle.owner_id === user?.id;
+  const isWerkzeugCategory = selectedCategory.toLowerCase().includes('werkzeug');
 
   const getQuantity = (materialId: string) => {
     const entry = inventory.find(
@@ -89,13 +92,22 @@ const MonteurInventoryCheck = () => {
         </div>
       </div>
 
+      {/* Werkzeug-Hinweis für Nicht-Inhaber */}
+      {isWerkzeugCategory && !isOwner && (
+        <div className="mx-4 mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <Lock className="h-4 w-4 shrink-0" />
+          Nur der Fahrzeuginhaber kann Werkzeug verwalten
+        </div>
+      )}
+
       {/* Material List */}
       <main className="flex-1 p-4 space-y-3 pb-8">
         {filteredMaterials.map(mat => {
           const qty = getQuantity(mat.id);
           const isAtTarget = qty >= mat.target_quantity;
+          const canEdit = !isWerkzeugCategory || isOwner;
           return (
-            <Card key={mat.id} className="overflow-hidden">
+            <Card key={mat.id} className={`overflow-hidden ${!canEdit ? 'opacity-70' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
@@ -112,10 +124,14 @@ const MonteurInventoryCheck = () => {
                     <span className="text-xs text-muted-foreground">
                       Soll: {mat.target_quantity}
                     </span>
-                    <StepperInput
-                      value={qty}
-                      onChange={val => handleQuantityChange(mat.id, val)}
-                    />
+                    {canEdit ? (
+                      <StepperInput
+                        value={qty}
+                        onChange={val => handleQuantityChange(mat.id, val)}
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-muted-foreground">{qty}</span>
+                    )}
                   </div>
                 </div>
               </CardContent>

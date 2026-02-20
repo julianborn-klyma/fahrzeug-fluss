@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star } from 'lucide-react';
 import { Vehicle } from '@/types/database';
 
 const SettingsVehicles = () => {
@@ -35,11 +35,13 @@ const SettingsVehicles = () => {
   const [editItem, setEditItem] = useState<Vehicle | null>(null);
   const [formPlate, setFormPlate] = useState('');
   const [formTypeId, setFormTypeId] = useState('');
+  const [formOwnerId, setFormOwnerId] = useState('');
 
   const openAdd = () => {
     setEditItem(null);
     setFormPlate('');
     setFormTypeId(vehicleTypes[0]?.id || '');
+    setFormOwnerId('');
     setDialogOpen(true);
   };
 
@@ -47,6 +49,7 @@ const SettingsVehicles = () => {
     setEditItem(v);
     setFormPlate(v.license_plate);
     setFormTypeId(v.type_id);
+    setFormOwnerId(v.owner_id || '');
     setDialogOpen(true);
   };
 
@@ -56,6 +59,7 @@ const SettingsVehicles = () => {
       name: '',
       license_plate: formPlate.trim(),
       type_id: formTypeId,
+      owner_id: formOwnerId || undefined,
     };
     if (editItem) updateVehicle(item);
     else addVehicle(item);
@@ -81,6 +85,7 @@ const SettingsVehicles = () => {
           <TableRow>
             <TableHead>Kennzeichen</TableHead>
             <TableHead>Fahrzeugart</TableHead>
+            <TableHead>Inhaber</TableHead>
             <TableHead>Zugewiesene Benutzer</TableHead>
             <TableHead className="w-20" />
           </TableRow>
@@ -89,11 +94,22 @@ const SettingsVehicles = () => {
           {vehicles.map(vehicle => {
             const vt = vehicleTypes.find(t => t.id === vehicle.type_id);
             const assignedUsers = getAssignedUsers(vehicle.id);
+            const owner = users.find(u => u.id === vehicle.owner_id);
             return (
               <TableRow key={vehicle.id}>
                 <TableCell className="font-medium text-foreground">{vehicle.license_plate}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="font-normal">{vt?.name}</Badge>
+                </TableCell>
+                <TableCell>
+                  {owner ? (
+                    <span className="flex items-center gap-1 text-sm text-foreground">
+                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                      {owner.name}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {assignedUsers.map(u => u.name).join(', ') || '—'}
@@ -131,6 +147,18 @@ const SettingsVehicles = () => {
                 <SelectContent>
                   {vehicleTypes.map(vt => (
                     <SelectItem key={vt.id} value={vt.id}>{vt.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Fahrzeuginhaber</Label>
+              <Select value={formOwnerId} onValueChange={setFormOwnerId}>
+                <SelectTrigger><SelectValue placeholder="Kein Inhaber" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Kein Inhaber</SelectItem>
+                  {users.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -1,0 +1,1 @@
+ALTER TABLE public.vehicles ADD COLUMN owner_id uuid DEFAULT NULL;
