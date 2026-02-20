@@ -88,15 +88,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   Kalkulation
                 </Button>
               )}
-              <Button
-                variant={isTasks ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => navigate('/admin/tasks')}
-                className="gap-2"
-              >
-                <ClipboardList className="h-4 w-4" />
-                Aufgaben
-              </Button>
+              {montageEnabled && (
+                <Button
+                  variant={isTasks ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => navigate('/admin/tasks')}
+                  className="gap-2"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Aufgaben
+                </Button>
+              )}
               {lagerEnabled && (
                 <Button
                   variant={isDashboard ? 'default' : 'ghost'}
