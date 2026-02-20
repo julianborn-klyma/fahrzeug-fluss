@@ -86,6 +86,7 @@ export interface Job {
   order_type?: OrderType;
   contact_person?: Contact;
   planner?: { id: string; name: string; email: string; user_id: string };
+  pricebook_id?: string | null;
 }
 
 export interface JobTradeDetail {

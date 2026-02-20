@@ -5,6 +5,7 @@ import { useJobs } from '@/hooks/useJobs';
 import { useJobDocuments } from '@/hooks/useJobDocuments';
 import { useJobAppointments } from '@/hooks/useJobAppointments';
 import { useOrderTypes } from '@/hooks/useOrderTypes';
+import { usePriceBooks } from '@/hooks/useKalkulation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X, RefreshCw } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X, RefreshCw, BookOpen } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
 import JobStatusTimeline from '@/components/montage/JobStatusTimeline';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
@@ -28,6 +29,7 @@ const AdminJobDetail = () => {
   const { documents, uploadDocument, deleteDocument, renameDocument, getDownloadUrl } = useJobDocuments(id);
   const { appointments, createJobAppointment } = useJobAppointments(id);
   const { orderTypes } = useOrderTypes();
+  const { data: pricebooks } = usePriceBooks();
 
   // Fetch all contacts for contact person selector
   const { data: allContacts } = useQuery({
@@ -254,6 +256,36 @@ const AdminJobDetail = () => {
         </Card>
       </div>
 
+      {/* Pricebook Selection */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase">Preisbuch</span>
+            </div>
+          </div>
+          <Select
+            value={job.pricebook_id || ''}
+            onValueChange={async (val) => {
+              try {
+                await updateJob.mutateAsync({ id: job.id, pricebook_id: val || null } as any);
+                toast.success('Preisbuch aktualisiert.');
+              } catch { toast.error('Fehler.'); }
+            }}
+          >
+            <SelectTrigger className="mt-1 h-8 text-sm">
+              <SelectValue placeholder="Preisbuch wählen…" />
+            </SelectTrigger>
+            <SelectContent>
+              {(pricebooks || []).filter((pb: any) => pb.is_active).map((pb: any) => (
+                <SelectItem key={pb.id} value={pb.id}>{pb.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
       {job.description && <p className="text-sm">{job.description}</p>}
 
       <Tabs defaultValue="appointments" className="space-y-4">
@@ -277,7 +309,7 @@ const AdminJobDetail = () => {
               <p className="text-sm text-muted-foreground py-4">Keine Termine angelegt.</p>
             ) : (
               appointments.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} jobId={id} jobDocuments={documents} />
+                <AppointmentCard key={a.id} appointment={a} jobId={id} jobDocuments={documents} pricebookId={job.pricebook_id} />
               ))
             )}
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setShowAddAppointment(true)}>
