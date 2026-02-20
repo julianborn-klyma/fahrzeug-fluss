@@ -447,6 +447,24 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
               </div>
             )}
           </div>
+
+          {/* Custom Fields */}
+          {fields.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  Felder
+                </h4>
+                <AppointmentFieldsEditor
+                  appointmentId={a.id}
+                  fields={fields}
+                  fieldValues={fieldValues}
+                  readonly={currentStatus === 'abgenommen'}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* RIGHT: Checklists with group progress */}
