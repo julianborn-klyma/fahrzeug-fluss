@@ -1,45 +1,55 @@
 
-# Checklisten nativ im Tab anzeigen (wie in den Screenshots)
+# Fahrzeuginhaber und Werkzeug-Berechtigung
 
-## Aktueller Zustand
-Der Checklisten-Tab zeigt Karten mit Fortschrittsbalken. Ein Klick oeffnet einen Dialog (`ChecklistDetailDialog`). Der Nutzer moechte stattdessen die Schritte direkt im Tab sehen -- wie in den Screenshots: eine flache Liste mit Status-Icons und Klick auf einen Schritt oeffnet die Detail-Ansicht (Kommentar + Foto).
+## Zusammenfassung
+Jedes Fahrzeug bekommt einen **Fahrzeuginhaber** (einen bestimmten Monteur). Zusaetzlich bleiben die bestehenden Zuweisungen fuer die allgemeine Materialverwaltung bestehen. Materialien der Kategorie **Werkzeug** (Unterkategorien: Fahrzeugwerkzeug, Handwerkzeug) koennen in der Monteur-App nur vom Fahrzeuginhaber bearbeitet werden.
 
-## Geplante Aenderungen
+## Aenderungen im Detail
 
-### 1. Checklisten-Tab umbauen (`MonteurJobDetail.tsx`)
-- Gruppen werden als aufklappbare Sektionen (`Collapsible`) direkt im Tab angezeigt
-- Jeder Schritt wird als Zeile dargestellt mit:
-  - **Kein Icon**: Schritt offen (nicht erledigt, nicht verpflichtend)
-  - **Gruener Haken**: Schritt erledigt (`is_completed = true`)
-  - **Rotes Ausrufezeichen**: Verpflichtend aber noch offen (`is_required = true` und `is_completed = false`)
-- Foto-Thumbnail (kleines Bild-Icon oder Vorschau) links, wenn der Schritt vom Typ `photo` ist
-- Untertitel "Zu erledigen" / "Erledigt" unter jedem Schritt-Titel
-- Klick auf einen Schritt oeffnet eine **Schritt-Detail-Ansicht** (neuer Dialog oder Fullscreen-Sheet)
+### 1. Datenbank: Neue Spalte `owner_id` auf `vehicles`
+- Neue nullable Spalte `owner_id` (uuid) auf der Tabelle `vehicles` hinzufuegen
+- Diese Spalte speichert die `user_id` des Fahrzeuginhabers
 
-### 2. Neue Komponente: `ChecklistStepDetailSheet` (in `MonteurJobDetail.tsx` oder eigene Datei)
-- Wird als Sheet/Dialog geoeffnet wenn man auf einen Schritt tippt
-- Zeigt: Schritt-Titel, Typ-Label ("Aufgabe"), optionales Kommentar-Feld, Foto-Upload-Button (Kamera-Icon unten rechts wie im Screenshot)
-- Fortschrittsbalken unten mit "Zurueck" / "Weiter" Navigation zwischen Schritten
-- Foto-Upload mit `capture="environment"` fuer Kamera
-- Annotation (Malen auf Foto) ueber bestehendes `PhotoAnnotationDialog`
+### 2. Admin-Einstellungen: Fahrzeug-Dialog erweitern (SettingsVehicles.tsx)
+- Im Fahrzeug-Bearbeitungsdialog ein neues Dropdown **"Fahrzeuginhaber"** hinzufuegen
+- Auswahl aus allen Benutzern (Profilen)
+- In der Fahrzeug-Tabelle den Inhaber als eigene Spalte anzeigen (z.B. mit einem Stern oder Label hervorgehoben)
 
-### 3. Bestehende `ChecklistDetailDialog`-Logik wiederverwenden
-- Die Upload-, Toggle-, Text- und Annotations-Logik aus `ChecklistDetailDialog` wird in den neuen Flow integriert
-- Der bestehende Dialog bleibt fuer die Admin-Ansicht erhalten
+### 3. TypeScript-Typen anpassen (database.ts)
+- `Vehicle`-Interface um `owner_id?: string` erweitern
+
+### 4. DataContext anpassen (DataContext.tsx)
+- `owner_id` beim Laden, Erstellen und Aktualisieren von Fahrzeugen beruecksichtigen
+
+### 5. Monteur-App: Werkzeug-Bearbeitung einschraenken (MonteurInventoryCheck.tsx)
+- Pruefen ob der aktuelle Benutzer der Fahrzeuginhaber ist (`vehicle.owner_id === user.id`)
+- Wenn die ausgewaehlte Kategorie "Werkzeug" ist (genauer: Materialien mit Kategorie die "werkzeug" enthaelt, also Fahrzeugwerkzeug/Handwerkzeug als Unterkategorien):
+  - **Fahrzeuginhaber**: StepperInput bleibt editierbar
+  - **Andere Monteure**: StepperInput wird deaktiviert, mit einem Hinweistext "Nur der Fahrzeuginhaber kann Werkzeug verwalten"
+
+### 6. Fahrzeugauswahl-Seite: Inhaber kennzeichnen (MonteurVehicleSelect.tsx)
+- Optional: Bei Fahrzeugen, deren Inhaber der aktuelle Benutzer ist, ein kleines Label "Inhaber" anzeigen
+
+---
 
 ## Technische Details
 
-### `MonteurJobDetail.tsx`
-- Checklisten-Tab: Statt der Karten-Liste werden Gruppen mit `Collapsible` angezeigt
-- Jeder Schritt ist eine klickbare Zeile mit Status-Icon (Check/AlertCircle/leer)
-- State: `selectedStep` fuer die Detail-Ansicht
-- Fortschrittsbalken oben pro Checkliste
+### Datenbank-Migration (SQL)
+```sql
+ALTER TABLE public.vehicles
+ADD COLUMN owner_id uuid DEFAULT NULL;
+```
 
-### Neue Komponente oder Inline-Sheet fuer Schritt-Details
-- Sheet/Dialog mit Schritt-Titel, Kommentar-Textarea, Kamera-Button
-- "Zurueck"/"Weiter" Buttons am unteren Rand navigieren durch die Schritte der aktuellen Checkliste
-- Gruener Fortschrittsbalken zwischen den Buttons
-- Upload-Logik aus `ChecklistDetailDialog` wird hierhin uebernommen (Supabase Storage Upload, signed URLs)
+### Betroffene Dateien
+| Datei | Aenderung |
+|---|---|
+| `src/types/database.ts` | `owner_id?: string` zu Vehicle hinzufuegen |
+| `src/context/DataContext.tsx` | owner_id in fetch/add/update Logik einbauen |
+| `src/components/settings/SettingsVehicles.tsx` | Inhaber-Dropdown im Dialog, Inhaber-Spalte in Tabelle |
+| `src/pages/MonteurInventoryCheck.tsx` | Werkzeug-Kategorie fuer Nicht-Inhaber sperren |
+| `src/pages/MonteurVehicleSelect.tsx` | Inhaber-Badge anzeigen |
 
-### Keine Datenbank-Aenderungen noetig
-Alle benoetigten Felder (`is_completed`, `is_required`, `photo_urls`, `text_value`, `step_type`, `parent_step_id`) existieren bereits in `job_checklist_steps`.
+### Werkzeug-Kategorie Logik
+Die bestehende Kategorie "Werkzeug" in `material_catalog` wird weiterverwendet. In der Monteur-App wird geprueft:
+- Ist die Kategorie des Materials === "Werkzeug"? -> Nur Inhaber darf Menge aendern
+- Alle anderen Kategorien -> Jeder zugewiesene Monteur darf Menge aendern
