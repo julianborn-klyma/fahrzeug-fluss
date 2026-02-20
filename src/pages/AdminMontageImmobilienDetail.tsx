@@ -10,6 +10,7 @@ import { JOB_STATUS_LABELS } from '@/types/montage';
 import type { JobStatus } from '@/types/montage';
 import { useState } from 'react';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
+import TaskTimeline from '@/components/tasks/TaskTimeline';
 
 const statusColor: Record<JobStatus, string> = {
   neu: 'bg-muted text-muted-foreground',
@@ -94,6 +95,8 @@ const AdminMontageImmobilienDetail = () => {
           ))}
         </div>
       )}
+
+      {id && <TaskTimeline entityType="property" entityId={id} />}
 
       <CreateJobWizard
         open={wizardOpen}

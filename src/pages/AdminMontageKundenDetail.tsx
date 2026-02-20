@@ -11,6 +11,7 @@ import { JOB_STATUS_LABELS } from '@/types/montage';
 import type { JobStatus } from '@/types/montage';
 import CreatePropertyDialog from '@/components/montage/CreatePropertyDialog';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
+import TaskTimeline from '@/components/tasks/TaskTimeline';
 
 const statusColor: Record<JobStatus, string> = {
   neu: 'bg-muted text-muted-foreground',
@@ -93,6 +94,8 @@ const AdminMontageKundenDetail = () => {
           );
         })
       )}
+
+      {id && <TaskTimeline entityType="client" entityId={id} />}
 
       <CreatePropertyDialog open={propDialogOpen} onOpenChange={setPropDialogOpen} client={client} />
       <CreateJobWizard open={wizardOpen} onOpenChange={setWizardOpen} preselectedClient={client} preselectedProperty={wizardProperty} />

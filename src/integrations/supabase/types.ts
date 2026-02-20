@@ -1562,6 +1562,56 @@ export type Database = {
           },
         ]
       }
+      tasks: {
+        Row: {
+          assigned_to: string
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          assigned_to: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          status?: string
+          title?: string
+        }
+        Update: {
+          assigned_to?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       teamleiter_monteur_assignments: {
         Row: {
           created_at: string
