@@ -80,6 +80,47 @@ export function useTasks(entityType?: string, entityId?: string) {
   return { tasks, isLoading, createTask, toggleTaskStatus };
 }
 
+export function useAllTasks() {
+  const queryClient = useQueryClient();
+
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', 'all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks' as any)
+        .select('*')
+        .order('due_date', { ascending: true, nullsFirst: false });
+      if (error) throw error;
+
+      const tasks = (data || []) as any[];
+      const userIds = [...new Set(tasks.map(t => t.assigned_to).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('user_id, name, email').in('user_id', userIds);
+        const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+        for (const t of tasks) {
+          t.assigned_profile = profileMap.get(t.assigned_to) || null;
+        }
+      }
+      return tasks as Task[];
+    },
+  });
+
+  const toggleTaskStatus = useMutation({
+    mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: string }) => {
+      const newStatus = currentStatus === 'open' ? 'closed' : 'open';
+      const updates: any = { status: newStatus };
+      if (newStatus === 'closed') updates.closed_at = new Date().toISOString();
+      else updates.closed_at = null;
+
+      const { error } = await supabase.from('tasks' as any).update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+
+  return { tasks, isLoading, toggleTaskStatus };
+}
+
 export function useMyTasks() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
