@@ -79,7 +79,9 @@ const AppointmentStatusTimeline = ({ appointment, documents, onStatusChange }: A
   const handleStatusChange = async (targetStatus: AppointmentStatus) => {
     const targetIdx = APPOINTMENT_STATUS_ORDER.indexOf(targetStatus);
     const vorIdx = APPOINTMENT_STATUS_ORDER.indexOf('vorbereitet');
-    if (targetIdx >= vorIdx) {
+    // Only validate preparation requirements when moving INTO or THROUGH vorbereitet from before it
+    // Don't block transitions that happen after vorbereitet (e.g. review -> abgenommen)
+    if (targetIdx >= vorIdx && currentIdx < vorIdx) {
       const validation = validateAppointmentRequirements(appointment, documents);
       if (!validation.valid) {
         setTransitionWarnings(validation.warnings);
