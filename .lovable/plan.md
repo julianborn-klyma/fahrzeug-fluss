@@ -1,80 +1,94 @@
 
-# Produkte und Pakete pro Termin
+# Aufgaben (Tasks) einfuehren
 
 ## Uebersicht
-Jedem Termin (Appointment) koennen Produkte und Pakete aus dem Kalkulationsmodul zugewiesen werden. Der Auftrag (Job) bekommt ein Preisbuch zugeordnet, damit die richtigen Preise gezogen werden. Pro Termin werden EK, VK und MwSt berechnet.
+Ein neues Aufgabensystem wird eingefuehrt, das es Admins, Teamleitern und Office-Mitarbeitern ermoeglicht, Aufgaben zu erstellen und zuzuweisen. Aufgaben koennen an Objekte (Termin, Auftrag, Immobilie, Kunde) gebunden sein und werden sowohl auf den jeweiligen Detailseiten als auch in einer eigenen globalen Aufgaben-Uebersicht angezeigt.
 
-## Aenderungen
+## 1. Datenbank
 
-### 1. Datenbank
+**Neue Tabelle `tasks`:**
 
-**Neue Tabelle `job_appointment_items`:**
-- `id` (uuid, PK)
-- `job_appointment_id` (uuid, FK -> job_appointments)
-- `item_type` (text: 'product' oder 'package')
-- `item_id` (uuid, Referenz auf kalkulation_products oder kalkulation_packages)
-- `quantity` (numeric, default 1)
-- `vat_rate` (numeric, default 19 -- MwSt-Satz in Prozent)
-- `override_vk` (numeric, nullable -- optionaler manueller VK-Override)
-- `created_at` (timestamptz)
+| Spalte | Typ | Default | Beschreibung |
+|--------|-----|---------|-------------|
+| id | uuid | gen_random_uuid() | Primaerschluessel |
+| title | text | '' | Titel der Aufgabe |
+| description | text | '' | Beschreibungstext |
+| due_date | date | null | Faelligkeitsdatum |
+| status | text | 'open' | 'open' oder 'closed' |
+| assigned_to | uuid | not null | Profil-ID des Zugewiesenen |
+| created_by | uuid | auth.uid() | Ersteller |
+| entity_type | text | null | 'appointment', 'job', 'property', 'client' |
+| entity_id | uuid | null | ID des zugeordneten Objekts |
+| closed_at | timestamptz | null | Zeitpunkt des Abschliessens |
+| created_at | timestamptz | now() | Erstellzeitpunkt |
 
-RLS-Policies: Gleiche Struktur wie bei job_appointments (Admin/Office/Teamleiter ALL, Monteur SELECT).
+**RLS-Policies:** Gleiche Struktur wie bei anderen Tabellen -- Admin/Office/Teamleiter ALL, Monteur SELECT (eigene).
 
-**Neue Spalte auf `jobs`:**
-- `pricebook_id` (uuid, nullable) -- Zugeordnetes Preisbuch
+## 2. Neue Seite: Aufgaben-Tab in der Navigation
 
-### 2. Auftrag: Preisbuch-Zuordnung
+- Neue Seite `src/pages/AdminTasks.tsx` -- zeigt alle Aufgaben des eingeloggten Users
+- Filterbar nach Status (Offen/Geschlossen), sortiert nach Faelligkeit
+- Jede Aufgabe zeigt: Titel, Faelligkeit, Status, zugeordnetes Objekt (mit Link)
+- Aufgaben koennen hier erstellt, bearbeitet und geschlossen werden
 
-In `AdminJobDetail.tsx` wird neben dem Auftragsplaner eine Preisbuch-Auswahl (Select-Dropdown) angezeigt. Dort waehlt man das Preisbuch, das fuer die Preisberechnung aller Termine verwendet wird.
+**Navigation:** Neuer Button "Aufgaben" in `AdminLayout.tsx` (zwischen Kalkulation und Fahrzeuglager), mit Icon `ClipboardList`. Route: `/admin/tasks`.
 
-### 3. Detail-Modal: 3 Tabs
+## 3. Aufgaben-Komponente fuer Detailseiten
 
-Das bestehende Detail-Modal im `AppointmentCard.tsx` hat derzeit 2 Tabs (Details, Checklisten). Es wird um einen dritten Tab **"Produkte"** erweitert:
+Neue wiederverwendbare Komponente `src/components/tasks/TaskTimeline.tsx`:
+- Empfaengt `entityType` und `entityId` als Props
+- Zeigt offene Aufgaben oben, abgeschlossene standardmaessig eingeklappt
+- Jede Aufgabe zeigt Titel, Zugewiesene Person, Faelligkeitsdatum, Status
+- Button zum Erstellen neuer Aufgaben
+- Button zum Abschliessen/Wiedereroeffnen
 
-**Tab "Produkte":**
-- Tabelle mit zugeordneten Produkten/Paketen: Name, Typ (Produkt/Paket), Menge, EK, VK, MwSt-Satz
-- Button "Produkt/Paket hinzufuegen" oeffnet ein Auswahl-Dialog
-- MwSt-Satz pro Zeile aenderbar (0%, 7%, 19%)
-- Summenzeile unten: Gesamt-EK, Gesamt-VK netto, MwSt-Betrag, Brutto
-- Preise werden aus dem zugeordneten Preisbuch des Auftrags gezogen (kalkulation_product_prices / kalkulation_package_prices)
+Neue Komponente `src/components/tasks/CreateTaskDialog.tsx`:
+- Dialog zum Erstellen einer Aufgabe
+- Felder: Titel, Beschreibung, Faelligkeitsdatum, zugewiesene Person (Dropdown mit Profilen)
+- entity_type und entity_id werden automatisch aus dem Kontext gesetzt
 
-### 4. Hinzufuegen-Dialog
+## 4. Integration in Detailseiten
 
-Modal mit:
-- Toggle zwischen "Produkte" und "Pakete"
-- Suchfeld
-- Liste der verfuegbaren Produkte/Pakete mit Artikelnummer, Name, EK und VK (aus dem Preisbuch des Auftrags)
-- Klick fuegt das Item mit Menge 1 und 19% MwSt hinzu
+Die `TaskTimeline`-Komponente wird auf folgenden Seiten eingebaut:
 
-### 5. Neue Dateien und Hooks
+- **AdminJobDetail.tsx** -- entity_type='job', unter den bestehenden Tabs oder als eigener Abschnitt
+- **AdminMontageKundenDetail.tsx** -- entity_type='client'
+- **AdminMontageImmobilienDetail.tsx** -- entity_type='property'
+- **AppointmentCard.tsx** -- entity_type='appointment', im Detail-Modal (optional als 4. Tab oder unterhalb)
 
-- `src/hooks/useAppointmentItems.ts` -- CRUD fuer job_appointment_items
-- `src/components/montage/AppointmentProductsTab.tsx` -- Der neue "Produkte"-Tab
+## 5. Hook
 
-### 6. Bestehende Dateien die geaendert werden
+Neuer Hook `src/hooks/useTasks.ts`:
+- `useTasks(entityType?, entityId?)` -- laedt Aufgaben, optional gefiltert nach Objekt
+- `useMyTasks()` -- laedt alle Aufgaben des eingeloggten Users
+- CRUD-Funktionen: createTask, updateTask, toggleTaskStatus
 
-- `src/pages/AdminJobDetail.tsx` -- Preisbuch-Select hinzufuegen, pricebook_id an AppointmentCard weitergeben
-- `src/components/montage/AppointmentCard.tsx` -- Dritten Tab "Produkte" im Detail-Modal, pricebook_id als Prop
-- `src/hooks/useJobs.ts` -- pricebook_id in Queries und Updates einbauen
-- `src/types/montage.ts` -- Job-Interface um pricebook_id erweitern
+## 6. Dateien-Uebersicht
+
+**Neue Dateien:**
+- `src/hooks/useTasks.ts`
+- `src/components/tasks/TaskTimeline.tsx`
+- `src/components/tasks/CreateTaskDialog.tsx`
+- `src/pages/AdminTasks.tsx`
+
+**Geaenderte Dateien:**
+- `src/components/AdminLayout.tsx` -- Neuer Nav-Button "Aufgaben"
+- `src/App.tsx` -- Neue Route `/admin/tasks`
+- `src/pages/AdminJobDetail.tsx` -- TaskTimeline einbinden
+- `src/pages/AdminMontageKundenDetail.tsx` -- TaskTimeline einbinden
+- `src/pages/AdminMontageImmobilienDetail.tsx` -- TaskTimeline einbinden
+- `src/components/montage/AppointmentCard.tsx` -- TaskTimeline einbinden
 
 ## Technische Details
 
-### Preisberechnung
-- EK pro Produkt: `material_cost + (hourly_rate * time_budget)` (aus kalkulation_product_prices)
-- VK pro Produkt: `final_vk` aus kalkulation_product_prices (oder override_vk falls gesetzt)
-- EK pro Paket: Summe der Produkt-EKs * Menge aus package_items
-- VK pro Paket: `custom_override_vk` aus kalkulation_package_prices, oder Summe der Produkt-VKs
-- MwSt pro Zeile: `VK * quantity * (vat_rate / 100)`
-- Es werden die bestehenden Hooks `useProductPrices`, `usePackagePrices`, `useProducts`, `usePackages`, `useAllPackageItems` wiederverwendet
+### Aufgaben-Zeitleiste (TaskTimeline)
+- Offene Aufgaben werden chronologisch nach Faelligkeit sortiert (naechste zuerst)
+- Ueberfaellige Aufgaben werden rot hervorgehoben
+- Abgeschlossene Aufgaben sind in einem Collapsible-Bereich versteckt
+- Klick auf eine Aufgabe oeffnet inline-Details mit Beschreibung
 
-### Datenfluss
-
-```text
-Job (pricebook_id) 
-  -> AppointmentCard (pricebook_id prop)
-    -> AppointmentProductsTab
-      -> useAppointmentItems (CRUD job_appointment_items)
-      -> useProductPrices(pricebook_id) + usePackagePrices(pricebook_id)
-      -> Berechnung EK/VK/MwSt mit Hilfsfunktionen aus src/lib/kalkulation.ts
-```
+### Globale Aufgabenseite
+- Tabelle/Listenansicht aller eigenen Aufgaben
+- Spalten: Titel, Objekt (mit Typ-Badge und Link), Faelligkeit, Status
+- Filter: Status (Offen/Geschlossen/Alle)
+- Sortierung nach Faelligkeit (Standard: aufsteigend)
