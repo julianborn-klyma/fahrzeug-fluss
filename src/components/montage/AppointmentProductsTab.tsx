@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Plus, Trash2, Search, Package, Box } from 'lucide-react';
 import { useAppointmentItems } from '@/hooks/useAppointmentItems';
-import { useProducts, usePackages, useProductPrices, usePackagePrices, useAllPackageItems } from '@/hooks/useKalkulation';
+import { useProducts, usePackages, useProductPrices, usePackagePrices, useAllPackageItems, useCategories } from '@/hooks/useKalkulation';
 import { calcEK, fmtEur } from '@/lib/kalkulation';
 import { toast } from 'sonner';
 import StepperInput from '@/components/StepperInput';
@@ -32,10 +32,12 @@ const AppointmentProductsTab = ({ appointmentId, pricebookId, readonly }: Appoin
   const { data: productPrices } = useProductPrices(pricebookId);
   const { data: packagePrices } = usePackagePrices(pricebookId);
   const { data: allPackageItems } = useAllPackageItems();
+  const { data: categories } = useCategories();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addTab, setAddTab] = useState<'products' | 'packages'>('products');
   const [search, setSearch] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
   // Build price lookups
   const productPriceMap = useMemo(() => {
@@ -107,20 +109,29 @@ const AppointmentProductsTab = ({ appointmentId, pricebookId, readonly }: Appoin
     } catch { toast.error('Fehler.'); }
   };
 
+  // Build category lookup
+  const categoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (categories || []).forEach((c: any) => { map[c.id] = c.name; });
+    return map;
+  }, [categories]);
+
   // Filtered lists for add dialog
   const filteredProducts = useMemo(() => {
     const s = search.toLowerCase();
     return (products || []).filter((p: any) =>
-      p.name.toLowerCase().includes(s) || p.article_number.toLowerCase().includes(s)
+      (p.name.toLowerCase().includes(s) || p.article_number.toLowerCase().includes(s)) &&
+      (selectedCategoryId === 'all' || p.category_id === selectedCategoryId)
     );
-  }, [products, search]);
+  }, [products, search, selectedCategoryId]);
 
   const filteredPackages = useMemo(() => {
     const s = search.toLowerCase();
     return (packages || []).filter((p: any) =>
-      p.name.toLowerCase().includes(s) || p.article_number.toLowerCase().includes(s)
+      (p.name.toLowerCase().includes(s) || p.article_number.toLowerCase().includes(s)) &&
+      (selectedCategoryId === 'all' || p.category_id === selectedCategoryId)
     );
-  }, [packages, search]);
+  }, [packages, search, selectedCategoryId]);
 
   if (!pricebookId) {
     return (
@@ -134,7 +145,7 @@ const AppointmentProductsTab = ({ appointmentId, pricebookId, readonly }: Appoin
     <div className="space-y-3 mt-3">
       {!readonly && (
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setShowAddDialog(true); setSearch(''); }}>
+          <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => { setShowAddDialog(true); setSearch(''); setSelectedCategoryId('all'); }}>
             <Plus className="h-3 w-3" /> Produkt/Paket hinzufügen
           </Button>
         </div>
@@ -238,9 +249,22 @@ const AppointmentProductsTab = ({ appointmentId, pricebookId, readonly }: Appoin
               <TabsTrigger value="packages" className="flex-1 gap-1"><Package className="h-3 w-3" /> Pakete</TabsTrigger>
             </TabsList>
 
-            <div className="relative mt-2">
-              <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-7 h-8 text-xs" />
+            <div className="flex gap-2 mt-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-7 h-8 text-xs" />
+              </div>
+              <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                <SelectTrigger className="h-8 text-xs w-40">
+                  <SelectValue placeholder="Kategorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Kategorien</SelectItem>
+                  {(categories || []).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <TabsContent value="products" className="mt-2 space-y-1">
