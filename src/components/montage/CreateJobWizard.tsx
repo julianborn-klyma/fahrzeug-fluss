@@ -52,6 +52,9 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
   const [description, setDescription] = useState('');
   const [generatedNumber, setGeneratedNumber] = useState('');
   const [plannerId, setPlannerId] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<string>('');
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState('');
 
   // Fetch profiles for planner selection
   const { data: allProfiles } = useQuery({
@@ -77,6 +80,9 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
       setOrderTypeId('');
       setDescription('');
       setPlannerId('');
+      setIsRecurring(false);
+      setRecurrenceInterval('');
+      setRecurrenceStartDate('');
       setShowNewClient(false);
       setShowNewProp(false);
     }
@@ -150,6 +156,12 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
     }
 
     try {
+      // Calculate next_due_date from recurrence settings
+      let nextDueDate: string | null = null;
+      if (isRecurring && recurrenceStartDate && recurrenceInterval) {
+        nextDueDate = recurrenceStartDate;
+      }
+
       const created = await createJob.mutateAsync({
         title: generatedTitle,
         job_number: generatedNumber,
@@ -159,6 +171,10 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
         order_type_id: orderTypeId,
         contact_person_id: selectedClient!.contact_id || null,
         planner_id: plannerId || null,
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? recurrenceInterval : null,
+        recurrence_start_date: isRecurring ? recurrenceStartDate : null,
+        next_due_date: nextDueDate,
       } as any);
       // Create default appointments
       if (created?.id) {
@@ -303,6 +319,34 @@ const CreateJobWizard: React.FC<Props> = ({ open, onOpenChange, preselectedClien
               <div><Label>Auftragstitel</Label><Input value={generatedTitle} readOnly className="bg-muted" /></div>
             )}
             <div><Label>Beschreibung</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" /></div>
+
+            {/* Recurring settings */}
+            <div className="space-y-3 border rounded-md p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox id="isRecurring" checked={isRecurring} onCheckedChange={(c) => setIsRecurring(!!c)} />
+                <Label htmlFor="isRecurring" className="font-medium">Wiederkehrend</Label>
+              </div>
+              {isRecurring && (
+                <>
+                  <div>
+                    <Label>Intervall</Label>
+                    <Select value={recurrenceInterval} onValueChange={setRecurrenceInterval}>
+                      <SelectTrigger><SelectValue placeholder="Intervall wählen…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monatlich</SelectItem>
+                        <SelectItem value="yearly">Jährlich</SelectItem>
+                        <SelectItem value="biennial">Zweijährlich</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Nächster Termin fällig am</Label>
+                    <Input type="date" value={recurrenceStartDate} onChange={(e) => setRecurrenceStartDate(e.target.value)} />
+                  </div>
+                </>
+              )}
+            </div>
+
             <div>
               <Label>Auftragsplaner</Label>
               <Select value={plannerId} onValueChange={setPlannerId}>

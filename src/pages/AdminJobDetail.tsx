@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
 import JobStatusTimeline from '@/components/montage/JobStatusTimeline';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
@@ -161,7 +161,25 @@ const AdminJobDetail = () => {
         <div>
           <h2 className="text-lg font-bold">{job.title || 'Ohne Titel'}</h2>
           <p className="text-sm text-muted-foreground">{job.job_number}</p>
-          {job.order_type && <Badge variant="secondary" className="mt-1">{job.order_type.name}</Badge>}
+          <div className="flex items-center gap-2 mt-1">
+            {job.order_type && <Badge variant="secondary">{job.order_type.name}</Badge>}
+            {job.is_recurring && (
+              <Badge variant="outline" className="gap-1">
+                <RefreshCw className="h-3 w-3" />
+                {{ monthly: 'Monatlich', yearly: 'Jährlich', biennial: 'Zweijährlich' }[job.recurrence_interval || ''] || 'Wiederkehrend'}
+              </Badge>
+            )}
+            {job.is_recurring && job.next_due_date && new Date(job.next_due_date) <= new Date() && (
+              <Badge variant="outline" className="border-orange-400 text-orange-600 dark:text-orange-400 gap-1">
+                <RefreshCw className="h-3 w-3" /> Fällig
+              </Badge>
+            )}
+          </div>
+          {job.is_recurring && job.next_due_date && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Nächster Termin fällig: {new Date(job.next_due_date).toLocaleDateString('de-DE')}
+            </p>
+          )}
         </div>
       </div>
 

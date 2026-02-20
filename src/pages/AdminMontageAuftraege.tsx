@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle, ListChecks, Filter, Layers } from 'lucide-react';
+import { Plus, Search, MapPin, ChevronDown, ChevronRight, Calendar, CheckCircle2, Circle, AlertTriangle, ListChecks, Filter, Layers, RefreshCw } from 'lucide-react';
 import { JOB_STATUS_LABELS, JOB_STATUS_ORDER, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER } from '@/types/montage';
 import type { JobStatus, AppointmentStatus } from '@/types/montage';
 import CreateJobWizard from '@/components/montage/CreateJobWizard';
@@ -82,6 +82,22 @@ const AdminMontageAuftraege = () => {
       }
     }
     return false;
+  };
+
+  // Check if a recurring job is due
+  const isJobDue = (job: any) => {
+    if (!job.is_recurring || !job.next_due_date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(job.next_due_date);
+    due.setHours(0, 0, 0, 0);
+    return due <= today;
+  };
+
+  const INTERVAL_LABELS: Record<string, string> = {
+    monthly: 'Monatlich',
+    yearly: 'Jährlich',
+    biennial: 'Zweijährlich',
   };
 
   // Derive available years
@@ -237,8 +253,9 @@ const AdminMontageAuftraege = () => {
                   const isExpanded = expandedJobId === job.id;
                   const jobAppts = getJobAppointments(job.id);
                   const hasWarning = isJobWarning(job);
+                  const isDue = isJobDue(job);
                   return (
-                    <Card key={job.id} className={cn("transition-colors", hasWarning && "border-destructive/50")}>
+                    <Card key={job.id} className={cn("transition-colors", hasWarning && "border-destructive/50", isDue && "border-orange-400/70")}>
                       <CardContent className="p-0">
                         <div className="p-4 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setExpandedJobId(isExpanded ? null : job.id)}>
                           <div className="flex items-start justify-between gap-2">
@@ -256,6 +273,16 @@ const AdminMontageAuftraege = () => {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
+                              {isDue && (
+                                <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 dark:text-orange-400 gap-1">
+                                  <RefreshCw className="h-3 w-3" /> Fällig
+                                </Badge>
+                              )}
+                              {job.is_recurring && !isDue && (
+                                <Badge variant="outline" className="text-xs gap-1">
+                                  <RefreshCw className="h-3 w-3" /> {INTERVAL_LABELS[job.recurrence_interval || ''] || 'Wiederkehrend'}
+                                </Badge>
+                              )}
                               {hasWarning && <AlertTriangle className="h-4 w-4 text-destructive" />}
                               {jobAppts.length > 0 && <span className="text-xs text-muted-foreground">{jobAppts.length} Termine</span>}
                               <Badge variant="secondary" className={statusColor[job.status]}>{JOB_STATUS_LABELS[job.status]}</Badge>
