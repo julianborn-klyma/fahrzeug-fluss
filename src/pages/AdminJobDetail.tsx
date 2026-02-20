@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, MapPin, FileText, Calendar, Plus, CheckCircle2, XCircle, Download, Trash2, Upload, User, UserCog, Search, Eye, Pencil, Check, X, RefreshCw, BookOpen } from 'lucide-react';
 import AppointmentCard from '@/components/montage/AppointmentCard';
+import TaskTimeline from '@/components/tasks/TaskTimeline';
 import JobStatusTimeline from '@/components/montage/JobStatusTimeline';
 import DocumentPreviewDialog from '@/components/montage/DocumentPreviewDialog';
 import { Label } from '@/components/ui/label';
@@ -287,6 +288,9 @@ const AdminJobDetail = () => {
       </Card>
 
       {job.description && <p className="text-sm">{job.description}</p>}
+
+      {/* Task Timeline */}
+      {id && <TaskTimeline entityType="job" entityId={id} />}
 
       <Tabs defaultValue="appointments" className="space-y-4">
         <TabsList>

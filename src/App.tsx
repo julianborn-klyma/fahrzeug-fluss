@@ -49,6 +49,7 @@ const DownloadPage = lazyRetry(() => import("./pages/DownloadPage"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 const SourceExport = lazyRetry(() => import("./pages/SourceExport"));
 const AdminKalkulation = lazyRetry(() => import("./pages/AdminKalkulation"));
+const AdminTasks = lazyRetry(() => import("./pages/AdminTasks"));
 
 const queryClient = new QueryClient();
 
@@ -118,6 +119,11 @@ const App = () => (
                   <Route path="/admin/kalkulation" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminKalkulation />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/tasks" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminTasks />
                     </ProtectedRoute>
                   } />
                   <Route path="/performance" element={

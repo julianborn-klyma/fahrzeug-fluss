@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase, Calculator } from 'lucide-react';
+import { LogOut, Warehouse, Settings, ArrowRightLeft, Trophy, Briefcase, Calculator, ClipboardList } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMyModuleAccess } from '@/hooks/useModuleAccess';
 import { useBranding } from '@/hooks/useBranding';
@@ -47,7 +47,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isPerformance = location.pathname.startsWith('/admin/performance');
   const isMontage = location.pathname.startsWith('/admin/montage');
   const isKalkulation = location.pathname.startsWith('/admin/kalkulation');
-  const isDashboard = !isSettings && !isPerformance && !isMontage && !isKalkulation;
+  const isTasks = location.pathname.startsWith('/admin/tasks');
+  const isDashboard = !isSettings && !isPerformance && !isMontage && !isKalkulation && !isTasks;
 
   const handleLogout = async () => {
     await signOut();
@@ -87,6 +88,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   Kalkulation
                 </Button>
               )}
+              <Button
+                variant={isTasks ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => navigate('/admin/tasks')}
+                className="gap-2"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Aufgaben
+              </Button>
               {lagerEnabled && (
                 <Button
                   variant={isDashboard ? 'default' : 'ghost'}

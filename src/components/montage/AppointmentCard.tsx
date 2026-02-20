@@ -27,6 +27,7 @@ import ChecklistDetailDialog from './ChecklistDetailDialog';
 import AppointmentStatusTimeline from './AppointmentStatusTimeline';
 import AppointmentFieldsEditor from './AppointmentFieldsEditor';
 import AppointmentProductsTab from './AppointmentProductsTab';
+import TaskTimeline from '@/components/tasks/TaskTimeline';
 
 interface AppointmentCardProps {
   appointment: any;
@@ -590,6 +591,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId
               )}
             </TabsTrigger>
             <TabsTrigger value="products" className="flex-1">Produkte</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex-1">Aufgaben</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-3">
@@ -774,6 +776,10 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId
               pricebookId={pricebookId || null}
               readonly={currentStatus === 'abgenommen'}
             />
+          </TabsContent>
+
+          <TabsContent value="tasks" className="mt-3">
+            <TaskTimeline entityType="appointment" entityId={a.id} />
           </TabsContent>
         </Tabs>
       </DialogContent>
