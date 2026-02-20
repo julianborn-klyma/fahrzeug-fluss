@@ -238,6 +238,27 @@ export type Database = {
         }
         Relationships: []
       }
+      branding_settings: {
+        Row: {
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       checklist_template_steps: {
         Row: {
           created_at: string

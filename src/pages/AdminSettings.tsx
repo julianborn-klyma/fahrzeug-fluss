@@ -1,6 +1,6 @@
 import AdminLayout from '@/components/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Users, Truck, Tag, Trophy, ToggleRight, Warehouse, UsersRound, FolderKanban } from 'lucide-react';
+import { Package, Users, Truck, Tag, Trophy, ToggleRight, Warehouse, UsersRound, FolderKanban, Settings2 } from 'lucide-react';
 import { useBonusSettings } from '@/context/BonusSettingsContext';
 import SettingsInventory from '@/components/settings/SettingsInventory';
 import SettingsUsers from '@/components/settings/SettingsUsers';
@@ -10,6 +10,7 @@ import SettingsVehicleTypes from '@/components/settings/SettingsVehicleTypes';
 import SettingsBonusParams from '@/components/settings/SettingsBonusParams';
 import SettingsModules from '@/components/settings/SettingsModules';
 import SettingsOrderTypes from '@/components/settings/SettingsOrderTypes';
+import SettingsBranding from '@/components/settings/SettingsBranding';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useMyModuleAccess } from '@/hooks/useModuleAccess';
@@ -31,7 +32,7 @@ const AdminSettings = () => {
   const lagerEnabled = canSee('module_fahrzeuglager_enabled', settings?.module_fahrzeuglager_enabled ?? true);
   const klymaOsEnabled = !isOffice && canSee('module_klyma_os_enabled', settings?.module_klyma_os_enabled ?? true);
   const [lagerSubTab, setLagerSubTab] = useState<'inventory' | 'vehicles' | 'vehicleTypes'>('inventory');
-  const [userSubTab, setUserSubTab] = useState<'users' | 'teams'>('users');
+  const [userSubTab, setUserSubTab] = useState<'users' | 'teams' | 'branding'>('users');
 
   return (
     <AdminLayout>
@@ -79,6 +80,7 @@ const AdminSettings = () => {
                 {[
                   { key: 'users' as const, label: 'Nutzerverwaltung', icon: Users },
                   { key: 'teams' as const, label: 'Teamverwaltung', icon: UsersRound },
+                  { key: 'branding' as const, label: 'Weitere Einstellungen', icon: Settings2 },
                 ].map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
@@ -96,6 +98,7 @@ const AdminSettings = () => {
               </div>
               {userSubTab === 'users' && <SettingsUsers />}
               {userSubTab === 'teams' && <SettingsTeams />}
+              {userSubTab === 'branding' && <SettingsBranding />}
             </div>
           </TabsContent>
           {klymaOsEnabled && (
