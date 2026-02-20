@@ -3,9 +3,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const tabs = [
   { value: 'planung', label: 'Planung', path: '/admin/montage/planung' },
-  { value: 'auftraege', label: 'Aufträge', path: '/admin/montage/auftraege' },
   { value: 'kunden', label: 'Kunden', path: '/admin/montage/kunden' },
   { value: 'immobilien', label: 'Immobilien', path: '/admin/montage/immobilien' },
+  { value: 'auftraege', label: 'Aufträge', path: '/admin/montage/auftraege' },
   { value: 'termine', label: 'Termine', path: '/admin/montage/termine' },
 ];
 
