@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star, Car } from 'lucide-react';
 import { Vehicle } from '@/types/database';
 
 const SettingsVehicles = () => {
@@ -36,12 +37,16 @@ const SettingsVehicles = () => {
   const [formPlate, setFormPlate] = useState('');
   const [formTypeId, setFormTypeId] = useState('');
   const [formOwnerId, setFormOwnerId] = useState('');
+  const [formStatus, setFormStatus] = useState<string>('einsatz');
+  const [formReplacementPlate, setFormReplacementPlate] = useState('');
 
   const openAdd = () => {
     setEditItem(null);
     setFormPlate('');
     setFormTypeId(vehicleTypes[0]?.id || '');
     setFormOwnerId('');
+    setFormStatus('einsatz');
+    setFormReplacementPlate('');
     setDialogOpen(true);
   };
 
@@ -50,6 +55,8 @@ const SettingsVehicles = () => {
     setFormPlate(v.license_plate);
     setFormTypeId(v.type_id);
     setFormOwnerId(v.owner_id || '');
+    setFormStatus(v.vehicle_status || 'einsatz');
+    setFormReplacementPlate(v.replacement_plate || '');
     setDialogOpen(true);
   };
 
@@ -60,6 +67,8 @@ const SettingsVehicles = () => {
       license_plate: formPlate.trim(),
       type_id: formTypeId,
       owner_id: formOwnerId || undefined,
+      vehicle_status: formStatus as Vehicle['vehicle_status'],
+      replacement_plate: formStatus === 'werkstatt' ? formReplacementPlate : '',
     };
     if (editItem) updateVehicle(item);
     else addVehicle(item);
@@ -85,6 +94,7 @@ const SettingsVehicles = () => {
           <TableRow>
             <TableHead>Kennzeichen</TableHead>
             <TableHead>Fahrzeugart</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Inhaber</TableHead>
             <TableHead>Zugewiesene Benutzer</TableHead>
             <TableHead className="w-20" />
@@ -100,6 +110,19 @@ const SettingsVehicles = () => {
                 <TableCell className="font-medium text-foreground">{vehicle.license_plate}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="font-normal">{vt?.name}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={cn(
+                    'font-normal text-[10px]',
+                    vehicle.vehicle_status === 'einsatz' && 'bg-green-50 text-green-700 border-green-300',
+                    vehicle.vehicle_status === 'werkstatt_noetig' && 'bg-orange-50 text-orange-700 border-orange-300',
+                    vehicle.vehicle_status === 'werkstatt' && 'bg-red-50 text-red-700 border-red-300',
+                  )}>
+                    {vehicle.vehicle_status === 'einsatz' ? 'Einsatz' : vehicle.vehicle_status === 'werkstatt_noetig' ? 'Werkstatt nötig' : vehicle.vehicle_status === 'werkstatt' ? 'Werkstatt' : 'Einsatz'}
+                  </Badge>
+                  {vehicle.vehicle_status === 'werkstatt' && vehicle.replacement_plate && (
+                    <span className="text-[10px] text-muted-foreground ml-1">Ersatz: {vehicle.replacement_plate}</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {owner ? (
@@ -163,6 +186,23 @@ const SettingsVehicles = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <Select value={formStatus} onValueChange={setFormStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="einsatz">Einsatz</SelectItem>
+                  <SelectItem value="werkstatt_noetig">Braucht Werkstatttermin</SelectItem>
+                  <SelectItem value="werkstatt">Werkstatt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {formStatus === 'werkstatt' && (
+              <div className="grid gap-2">
+                <Label>Kennzeichen Ersatzfahrzeug</Label>
+                <Input value={formReplacementPlate} onChange={e => setFormReplacementPlate(e.target.value)} placeholder="z.B. B-ER 2002" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>

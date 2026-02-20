@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronDown, ChevronRight, Users, User, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, User, AlertCircle, Car } from 'lucide-react';
 import { format, isToday, isWeekend, differenceInCalendarDays, startOfDay, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ import type { BarChangeRequest } from './GanttConfirmDialog';
 export interface GanttTeam {
   id: string;
   name: string;
-  members: { user_id: string; name: string }[];
+  members: { user_id: string; name: string; license_plate?: string; vehicle_status?: string; replacement_plate?: string; vehicle_id?: string }[];
 }
 
 export interface GanttBar {
@@ -36,6 +36,7 @@ interface Props {
   bars: GanttBar[];
   onBarClick?: (bar: GanttBar) => void;
   onBarChange?: (req: BarChangeRequest) => void;
+  onVehicleClick?: (vehicleId: string) => void;
   workDayStart?: string;
   workDayEnd?: string;
 }
@@ -108,7 +109,7 @@ function assignLanes(bars: { startIdx: number; endIdx: number; bar: GanttBar }[]
   return { lanes, maxLanes };
 }
 
-const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart = '08:00', workDayEnd = '17:00' }: Props) => {
+const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, onVehicleClick, workDayStart = '08:00', workDayEnd = '17:00' }: Props) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const totalDays = days.length;
   const viewStart = days[0];
@@ -393,9 +394,27 @@ const GanttChart = ({ teams, days, bars, onBarClick, onBarChange, workDayStart =
                 data-person-id={member.user_id}
                 data-person-name={member.name}
               >
-                <div className="w-52 shrink-0 border-r p-2 pl-9 flex items-center gap-2 sticky left-0 bg-card z-10" style={{ minHeight: rowH }}>
-                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm truncate">{member.name || 'Unbenannt'}</span>
+                <div className="w-52 shrink-0 border-r p-2 pl-9 flex items-start gap-2 sticky left-0 bg-card z-10" style={{ minHeight: rowH }}>
+                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm truncate">{member.name || 'Unbenannt'}</span>
+                    {member.license_plate && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (member.vehicle_id) onVehicleClick?.(member.vehicle_id); }}
+                        className={cn(
+                          'text-[10px] font-mono flex items-center gap-1 rounded px-1 py-0.5 -ml-1 transition-colors hover:bg-muted w-fit',
+                          member.vehicle_status === 'einsatz' && 'text-green-600',
+                          member.vehicle_status === 'werkstatt_noetig' && 'text-orange-500',
+                          member.vehicle_status === 'werkstatt' && 'text-red-400',
+                        )}
+                      >
+                        <Car className="h-3 w-3 shrink-0" />
+                        {member.vehicle_status === 'werkstatt' && member.replacement_plate
+                          ? member.replacement_plate
+                          : member.license_plate}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div
                   className="flex-1 relative"

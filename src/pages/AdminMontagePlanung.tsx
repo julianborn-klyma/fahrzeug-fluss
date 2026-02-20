@@ -14,6 +14,7 @@ import AppointmentSidebar, { type SidebarAppointment } from '@/components/planun
 import PlanungMap, { type MapMarker, type DistanceLine, haversineKm } from '@/components/planung/PlanungMap';
 import GanttConfirmDialog, { type BarChangeRequest } from '@/components/planung/GanttConfirmDialog';
 import GanttAppointmentDialog from '@/components/planung/GanttAppointmentDialog';
+import VehicleStatusDialog from '@/components/planung/VehicleStatusDialog';
 
 const AdminMontagePlanung = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ const AdminMontagePlanung = () => {
   const [barChangeReq, setBarChangeReq] = useState<BarChangeRequest | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<{ appointmentId: string; jobId: string } | null>(null);
   const [distanceAppointmentId, setDistanceAppointmentId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   // Calculate visible days
   const days = useMemo(() => {
@@ -77,20 +79,45 @@ const AdminMontagePlanung = () => {
   const { data: teamsData } = useQuery({
     queryKey: ['planung-teams'],
     queryFn: async () => {
-      const [teamsRes, profilesRes] = await Promise.all([
+      const [teamsRes, profilesRes, vehicleAssignRes, vehiclesRes] = await Promise.all([
         supabase.from('teams').select('*').order('name'),
         supabase.from('profiles').select('user_id, name, team_id, address_lat, address_lng, address_city').order('name'),
+        supabase.from('user_vehicle_assignments').select('user_id, vehicle_id'),
+        supabase.from('vehicles').select('id, license_plate, owner_id, vehicle_status, replacement_plate'),
       ]);
       const teams = teamsRes.data || [];
       const profiles = profilesRes.data || [];
+      const vAssigns = vehicleAssignRes.data || [];
+      const vehiclesMap = new Map((vehiclesRes.data || []).map((v: any) => [v.id, v]));
+
+      // For each profile, find their vehicle (owner first, then assignment)
+      const getMemberVehicle = (userId: string) => {
+        // First check if they own a vehicle
+        for (const [, v] of vehiclesMap) {
+          if ((v as any).owner_id === userId) return v as any;
+        }
+        // Otherwise check assignments
+        const assign = vAssigns.find(a => a.user_id === userId);
+        if (assign) return vehiclesMap.get(assign.vehicle_id) as any;
+        return null;
+      };
+
+      const mapMember = (p: any) => {
+        const v = getMemberVehicle(p.user_id);
+        return {
+          user_id: p.user_id,
+          name: p.name || '',
+          license_plate: v?.license_plate || undefined,
+          vehicle_status: v?.vehicle_status || undefined,
+          replacement_plate: v?.replacement_plate || undefined,
+          vehicle_id: v?.id || undefined,
+        };
+      };
 
       const ganttTeams: GanttTeam[] = teams.map(t => ({
         id: t.id,
         name: t.name,
-        members: profiles.filter(p => p.team_id === t.id).map(p => ({
-          user_id: p.user_id,
-          name: p.name || '',
-        })),
+        members: profiles.filter(p => p.team_id === t.id).map(mapMember),
       }));
 
       const unassigned = profiles.filter(p => !p.team_id);
@@ -98,7 +125,7 @@ const AdminMontagePlanung = () => {
         ganttTeams.push({
           id: '__unassigned',
           name: 'Ohne Team',
-          members: unassigned.map(p => ({ user_id: p.user_id, name: p.name || '' })),
+          members: unassigned.map(mapMember),
         });
       }
 
@@ -447,6 +474,7 @@ const AdminMontagePlanung = () => {
             bars={scheduledAppointments || []}
             onBarClick={(bar) => setSelectedAppointment({ appointmentId: bar.appointment_id, jobId: bar.job_id })}
             onBarChange={handleBarChange}
+            onVehicleClick={(vid) => setSelectedVehicleId(vid)}
             workDayStart={workDaySettings?.work_day_start || '08:00'}
             workDayEnd={workDaySettings?.work_day_end || '17:00'}
           />
@@ -486,6 +514,14 @@ const AdminMontagePlanung = () => {
           setDistanceAppointmentId(id);
           setRightPanel('map');
         }}
+      />
+
+      {/* Vehicle status dialog */}
+      <VehicleStatusDialog
+        vehicleId={selectedVehicleId}
+        open={!!selectedVehicleId}
+        onOpenChange={(open) => { if (!open) setSelectedVehicleId(null); }}
+        onUpdated={() => queryClient.invalidateQueries({ queryKey: ['planung-teams'] })}
       />
     </DndContext>
   );
