@@ -28,6 +28,7 @@ import AppointmentStatusTimeline from './AppointmentStatusTimeline';
 import AppointmentFieldsEditor from './AppointmentFieldsEditor';
 import AppointmentProductsTab from './AppointmentProductsTab';
 import TaskTimeline from '@/components/tasks/TaskTimeline';
+import { useBonusSettings } from '@/context/BonusSettingsContext';
 
 interface AppointmentCardProps {
   appointment: any;
@@ -57,6 +58,8 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId
   const [showAddMonteur, setShowAddMonteur] = useState(false);
   const [selectedMonteurId, setSelectedMonteurId] = useState('');
   const queryClient = useQueryClient();
+  const { settings } = useBonusSettings();
+  const kalkulationEnabled = settings?.module_kalkulation_enabled ?? true;
 
   // Date picker state
   const [startDate, setStartDate] = useState<Date | undefined>(a.start_date ? new Date(a.start_date) : undefined);
@@ -590,7 +593,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="products" className="flex-1">Produkte</TabsTrigger>
+            {kalkulationEnabled && <TabsTrigger value="products" className="flex-1">Produkte</TabsTrigger>}
             <TabsTrigger value="tasks" className="flex-1">Aufgaben</TabsTrigger>
           </TabsList>
 
@@ -770,13 +773,14 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId
             )}
           </TabsContent>
 
-          <TabsContent value="products">
-            <AppointmentProductsTab
-              appointmentId={a.id}
-              pricebookId={pricebookId || null}
-              readonly={currentStatus === 'abgenommen'}
-            />
-          </TabsContent>
+          {kalkulationEnabled && (
+            <TabsContent value="products">
+              <AppointmentProductsTab
+                appointmentId={a.id}
+                pricebookId={pricebookId}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="tasks" className="mt-3">
             <TaskTimeline entityType="appointment" entityId={a.id} />
