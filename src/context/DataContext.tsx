@@ -66,6 +66,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: v.id, name: v.name, license_plate: v.license_plate, type_id: v.type_id,
       driver_phone: v.driver_phone || '', driver_name: v.driver_name || '',
       owner_id: (v as any).owner_id || undefined,
+      vehicle_status: (v as any).vehicle_status || 'einsatz',
+      replacement_plate: (v as any).replacement_plate || '',
     })));
     if (mcRes.data) setMaterialCatalog(mcRes.data.map(m => ({
       id: m.id, name: m.name, article_number: m.article_number || '',
@@ -101,11 +103,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: v.name || '', license_plate: v.license_plate, type_id: v.type_id,
       driver_phone: v.driver_phone || '', driver_name: v.driver_name || '',
       owner_id: v.owner_id || null,
+      vehicle_status: v.vehicle_status || 'einsatz',
+      replacement_plate: v.replacement_plate || '',
     } as any).select().single();
-    if (data) setVehicles(prev => [...prev, { id: data.id, name: data.name, license_plate: data.license_plate, type_id: data.type_id, driver_phone: data.driver_phone || '', driver_name: data.driver_name || '', owner_id: (data as any).owner_id || undefined }]);
+    if (data) setVehicles(prev => [...prev, { id: data.id, name: data.name, license_plate: data.license_plate, type_id: data.type_id, driver_phone: data.driver_phone || '', driver_name: data.driver_name || '', owner_id: (data as any).owner_id || undefined, vehicle_status: (data as any).vehicle_status || 'einsatz', replacement_plate: (data as any).replacement_plate || '' }]);
   };
   const updateVehicle = async (v: Vehicle) => {
-    await supabase.from('vehicles').update({ license_plate: v.license_plate, type_id: v.type_id, name: v.name || '', driver_phone: v.driver_phone || '', driver_name: v.driver_name || '', owner_id: v.owner_id || null } as any).eq('id', v.id);
+    await supabase.from('vehicles').update({ license_plate: v.license_plate, type_id: v.type_id, name: v.name || '', driver_phone: v.driver_phone || '', driver_name: v.driver_name || '', owner_id: v.owner_id || null, vehicle_status: v.vehicle_status || 'einsatz', replacement_plate: v.replacement_plate || '' } as any).eq('id', v.id);
     setVehicles(prev => prev.map(x => x.id === v.id ? v : x));
   };
   const deleteVehicle = async (id: string) => {

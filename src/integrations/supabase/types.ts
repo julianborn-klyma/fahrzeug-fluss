@@ -1653,7 +1653,9 @@ export type Database = {
           license_plate: string
           name: string
           owner_id: string | null
+          replacement_plate: string | null
           type_id: string
+          vehicle_status: string
         }
         Insert: {
           created_at?: string
@@ -1663,7 +1665,9 @@ export type Database = {
           license_plate: string
           name?: string
           owner_id?: string | null
+          replacement_plate?: string | null
           type_id: string
+          vehicle_status?: string
         }
         Update: {
           created_at?: string
@@ -1673,7 +1677,9 @@ export type Database = {
           license_plate?: string
           name?: string
           owner_id?: string | null
+          replacement_plate?: string | null
           type_id?: string
+          vehicle_status?: string
         }
         Relationships: [
           {

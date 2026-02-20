@@ -14,6 +14,8 @@ export interface Vehicle {
   driver_phone?: string;
   driver_name?: string;
   owner_id?: string;
+  vehicle_status?: 'einsatz' | 'werkstatt_noetig' | 'werkstatt';
+  replacement_plate?: string;
 }
 
 export interface UserVehicleAssignment {
