@@ -31,7 +31,7 @@ import { Plus, Pencil, Trash2, Star, Car } from 'lucide-react';
 import { Vehicle } from '@/types/database';
 
 const SettingsVehicles = () => {
-  const { vehicles, vehicleTypes, users, assignments, addVehicle, updateVehicle, deleteVehicle } = useData();
+  const { vehicles, vehicleTypes, users, assignments, addVehicle, updateVehicle, deleteVehicle, addAssignment, removeAssignment } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Vehicle | null>(null);
   const [formPlate, setFormPlate] = useState('');
@@ -39,6 +39,11 @@ const SettingsVehicles = () => {
   const [formOwnerId, setFormOwnerId] = useState('');
   const [formStatus, setFormStatus] = useState<string>('einsatz');
   const [formReplacementPlate, setFormReplacementPlate] = useState('');
+
+  // Assign user dialog
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignVehicleId, setAssignVehicleId] = useState('');
+  const [assignUserId, setAssignUserId] = useState('');
 
   const openAdd = () => {
     setEditItem(null);
@@ -134,9 +139,34 @@ const SettingsVehicles = () => {
                     <span className="text-muted-foreground text-sm">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {assignedUsers.map(u => u.name).join(', ') || '—'}
-                </TableCell>
+                <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {assignedUsers.map(u => (
+                        <Badge key={u.id} variant="secondary" className="gap-1">
+                          {u.name}
+                          <button
+                            className="ml-1 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeAssignment(u.id, vehicle.id)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setAssignVehicleId(vehicle.id);
+                          setAssignUserId('');
+                          setAssignDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Zuweisen
+                      </Button>
+                    </div>
+                  </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(vehicle)}>
@@ -207,6 +237,41 @@ const SettingsVehicles = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
             <Button onClick={handleSave} disabled={!formPlate.trim() || !formTypeId}>Speichern</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign User to Vehicle Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Benutzer zuweisen</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Select value={assignUserId} onValueChange={setAssignUserId}>
+              <SelectTrigger><SelectValue placeholder="Benutzer wählen" /></SelectTrigger>
+              <SelectContent>
+                {users
+                  .filter(u => !assignments.some(a => a.vehicle_id === assignVehicleId && a.user_id === u.id))
+                  .map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Abbrechen</Button>
+            <Button
+              onClick={() => {
+                if (assignUserId && assignVehicleId) {
+                  addAssignment({ user_id: assignUserId, vehicle_id: assignVehicleId });
+                  setAssignDialogOpen(false);
+                }
+              }}
+              disabled={!assignUserId}
+            >
+              Zuweisen
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

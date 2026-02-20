@@ -82,11 +82,7 @@ const SettingsUsers = () => {
   const [selectedMonteurIds, setSelectedMonteurIds] = useState<string[]>([]);
   const [teamleiterAssignments, setTeamleiterAssignments] = useState<{ id: string; teamleiter_id: string; monteur_id: string }[]>([]);
 
-  // Assignment dialog
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [assignUserId, setAssignUserId] = useState('');
-  const [assignVehicleId, setAssignVehicleId] = useState('');
-
+  // (Vehicle assignment is now managed in SettingsVehicles)
   // Per-user module access
   const [allModuleAccess, setAllModuleAccess] = useState<Record<string, string[]>>({});
   const [editModules, setEditModules] = useState<string[]>([]);
@@ -360,30 +356,14 @@ const SettingsUsers = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
+                      {assignedVehicles.length === 0 && (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                       {assignedVehicles.map(v => (
-                        <Badge key={v.id} variant="secondary" className="gap-1">
+                        <Badge key={v.id} variant="secondary">
                           {v.license_plate}
-                          <button
-                            className="ml-1 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeAssignment(user.user_id, v.id)}
-                          >
-                            ×
-                          </button>
                         </Badge>
                       ))}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        onClick={() => {
-                          setAssignUserId(user.user_id);
-                          setAssignVehicleId('');
-                          setAssignDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Zuweisen
-                      </Button>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -545,40 +525,7 @@ const SettingsUsers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Assign Vehicle Dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Fahrzeug zuweisen</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Select value={assignVehicleId} onValueChange={setAssignVehicleId}>
-              <SelectTrigger><SelectValue placeholder="Fahrzeug wählen" /></SelectTrigger>
-              <SelectContent>
-                {vehicles
-                  .filter(v => !assignments.some(a => a.user_id === assignUserId && a.vehicle_id === v.id))
-                  .map(v => (
-                    <SelectItem key={v.id} value={v.id}>{v.license_plate}</SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Abbrechen</Button>
-            <Button
-              onClick={() => {
-                if (assignVehicleId) {
-                  addAssignment({ user_id: assignUserId, vehicle_id: assignVehicleId });
-                  setAssignDialogOpen(false);
-                }
-              }}
-              disabled={!assignVehicleId}
-            >
-              Zuweisen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Assign Monteurs to Teamleiter Dialog */}
       <Dialog open={teamleiterAssignDialogOpen} onOpenChange={setTeamleiterAssignDialogOpen}>
