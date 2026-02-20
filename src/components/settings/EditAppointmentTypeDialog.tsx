@@ -14,6 +14,22 @@ import { TRADE_LABELS, type TradeType } from '@/types/montage';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -88,6 +104,61 @@ const FieldForm = ({ form, onChange, onSave, onCancel, saveLabel }: {
   </Card>
 );
 
+// Sortable field card
+const SortableFieldCard = ({ field, onEdit, onDelete, editingFieldId, editForm, setEditForm, handleUpdateField, setEditingFieldId }: {
+  field: any;
+  onEdit: (f: any) => void;
+  onDelete: (id: string) => void;
+  editingFieldId: string | null;
+  editForm: FieldFormState;
+  setEditForm: (f: FieldFormState) => void;
+  handleUpdateField: () => void;
+  setEditingFieldId: (id: string | null) => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  if (editingFieldId === field.id) {
+    return (
+      <div ref={setNodeRef} style={style}>
+        <FieldForm form={editForm} onChange={setEditForm} onSave={handleUpdateField} onCancel={() => setEditingFieldId(null)} saveLabel="Aktualisieren" />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardContent className="p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <span className="text-sm font-medium">{field.label}</span>
+            <Badge variant="outline" className="text-xs">{FIELD_TYPES.find(ft => ft.value === field.field_type)?.label || field.field_type}</Badge>
+            {field.is_required && <Badge className="text-xs">Pflicht</Badge>}
+            <Badge variant="secondary" className="text-xs">{field.width === 'full' ? 'Volle Breite' : 'Halbe Breite'}</Badge>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(field)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(field.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onOpenChange }) => {
   const queryClient = useQueryClient();
   const { fields, upsertField, deleteField } = useAppointmentTypeFields(appointmentType.id);
@@ -105,6 +176,11 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
   const [editForm, setEditForm] = useState<FieldFormState>(emptyFieldForm);
 
   const [selectedDocTypeId, setSelectedDocTypeId] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   const handleSaveSettings = async () => {
     const { error } = await supabase.from('appointment_types').update({
@@ -166,6 +242,30 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
     } catch { toast.error('Fehler.'); }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = fields.findIndex((f: any) => f.id === active.id);
+    const newIndex = fields.findIndex((f: any) => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove([...fields], oldIndex, newIndex);
+
+    // Update display_order for all reordered fields
+    try {
+      await Promise.all(
+        reordered.map((f: any, idx: number) =>
+          supabase.from('appointment_type_fields').update({ display_order: idx } as any).eq('id', f.id)
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ['appointment-type-fields'] });
+      toast.success('Reihenfolge aktualisiert.');
+    } catch {
+      toast.error('Fehler beim Sortieren.');
+    }
+  };
+
   const handleAddDocument = async () => {
     if (!selectedDocTypeId) return;
     try {
@@ -205,34 +305,26 @@ const EditAppointmentTypeDialog: React.FC<Props> = ({ appointmentType, open, onO
           </TabsContent>
 
           <TabsContent value="fields" className="space-y-3 mt-4">
-            {fields.map((f: any) => (
-              editingFieldId === f.id ? (
-                <FieldForm key={f.id} form={editForm} onChange={setEditForm} onSave={handleUpdateField} onCancel={() => setEditingFieldId(null)} saveLabel="Aktualisieren" />
-              ) : (
-                <Card key={f.id}>
-                  <CardContent className="p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{f.label}</span>
-                      <Badge variant="outline" className="text-xs">{FIELD_TYPES.find(ft => ft.value === f.field_type)?.label || f.field_type}</Badge>
-                      {f.is_required && <Badge className="text-xs">Pflicht</Badge>}
-                      <Badge variant="secondary" className="text-xs">{f.width === 'full' ? 'Volle Breite' : 'Halbe Breite'}</Badge>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditField(f)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
-                        await deleteField.mutateAsync(f.id);
-                        toast.success('Feld gelöscht.');
-                      }}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            ))}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={fields.map((f: any) => f.id)} strategy={verticalListSortingStrategy}>
+                {fields.map((f: any) => (
+                  <SortableFieldCard
+                    key={f.id}
+                    field={f}
+                    onEdit={startEditField}
+                    onDelete={async (id) => {
+                      await deleteField.mutateAsync(id);
+                      toast.success('Feld gelöscht.');
+                    }}
+                    editingFieldId={editingFieldId}
+                    editForm={editForm}
+                    setEditForm={setEditForm}
+                    handleUpdateField={handleUpdateField}
+                    setEditingFieldId={setEditingFieldId}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             {!showNewField && !editingFieldId ? (
               <Button variant="outline" className="w-full gap-2" onClick={() => setShowNewField(true)}>
