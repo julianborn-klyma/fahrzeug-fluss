@@ -5,6 +5,7 @@ const tabs = [
   { value: 'planung', label: 'Planung', path: '/admin/montage/planung' },
   { value: 'auftraege', label: 'Aufträge', path: '/admin/montage/auftraege' },
   { value: 'kunden', label: 'Kunden', path: '/admin/montage/kunden' },
+  { value: 'immobilien', label: 'Immobilien', path: '/admin/montage/immobilien' },
   { value: 'termine', label: 'Termine', path: '/admin/montage/termine' },
 ];
 
