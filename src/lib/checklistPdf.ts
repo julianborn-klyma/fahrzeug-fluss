@@ -31,17 +31,27 @@ interface AppointmentInfo {
   assignees?: string[];
 }
 
-/** Load an image URL as a base64 data URL */
-async function loadImageAsBase64(url: string): Promise<string | null> {
+/** Load an image URL as a base64 data URL and get its natural dimensions */
+async function loadImageData(url: string): Promise<{ base64: string; width: number; height: number } | null> {
   try {
     const resp = await fetch(url);
     const blob = await resp.blob();
-    return new Promise((resolve) => {
+    const base64: string = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
+      reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+
+    // Get natural image dimensions
+    const dims: { width: number; height: number } = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 1, height: 1 });
+      img.src = base64;
+    });
+
+    return { base64, width: dims.width, height: dims.height };
   } catch {
     return null;
   }
@@ -188,46 +198,52 @@ export async function generateChecklistPdf(
       y += 3.5;
     }
 
-    // Photos
+    // Photos – preserve original aspect ratio
     const photos = getPhotos(step);
     if (photos.length > 0) {
-      const imgSize = 35;
+      const maxThumbH = 45;
+      const maxThumbW = 60;
       const gap = 3;
-      const cols = Math.min(4, Math.floor((contentW - indent) / (imgSize + gap)));
+      const availableW = contentW - indent - 6;
 
       for (let i = 0; i < photos.length; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-
-        if (col === 0 && i > 0) {
-          // New row
-        }
-        if (col === 0) {
-          checkPage(imgSize + 5);
-        }
-
-        const imgX = titleX + col * (imgSize + gap);
-        const imgY = y + row * (imgSize + gap);
-
         try {
-          const base64 = await loadImageAsBase64(photos[i]);
-          if (base64) {
-            doc.addImage(base64, 'JPEG', imgX, imgY, imgSize, imgSize);
+          const imgData = await loadImageData(photos[i]);
+          if (imgData) {
+            // Scale to fit within maxThumbW x maxThumbH while keeping aspect ratio
+            const ratio = imgData.width / imgData.height;
+            let drawW: number, drawH: number;
+            if (ratio >= 1) {
+              // Landscape or square
+              drawW = Math.min(maxThumbW, availableW);
+              drawH = drawW / ratio;
+              if (drawH > maxThumbH) { drawH = maxThumbH; drawW = drawH * ratio; }
+            } else {
+              // Portrait
+              drawH = maxThumbH;
+              drawW = drawH * ratio;
+              if (drawW > Math.min(maxThumbW, availableW)) { drawW = Math.min(maxThumbW, availableW); drawH = drawW / ratio; }
+            }
+
+            checkPage(drawH + 4);
+            doc.addImage(imgData.base64, 'JPEG', titleX, y, drawW, drawH);
+            y += drawH + gap;
           } else {
+            checkPage(12);
             doc.setDrawColor(200);
-            doc.rect(imgX, imgY, imgSize, imgSize);
+            doc.rect(titleX, y, 30, 10);
             doc.setFontSize(7);
             doc.setTextColor(150);
-            doc.text('Bild', imgX + imgSize / 2 - 4, imgY + imgSize / 2);
+            doc.text('Bild nicht verfügbar', titleX + 2, y + 6);
+            y += 13;
           }
         } catch {
+          checkPage(12);
           doc.setDrawColor(200);
-          doc.rect(imgX, imgY, imgSize, imgSize);
+          doc.rect(titleX, y, 30, 10);
+          y += 13;
         }
       }
-
-      const totalRows = Math.ceil(photos.length / cols);
-      y += totalRows * (imgSize + gap) + 2;
     }
 
     y += 2;
