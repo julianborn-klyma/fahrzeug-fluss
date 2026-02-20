@@ -70,7 +70,7 @@ const AdminMontageKundenDetail = () => {
           return (
             <Card key={prop.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
+                <CardTitle className="text-sm flex items-center gap-2 cursor-pointer hover:text-primary" onClick={() => navigate(`/admin/montage/immobilien/${prop.id}`)}>
                   <MapPin className="h-4 w-4" />
                   {prop.street_address}, {prop.postal_code} {prop.city}
                 </CardTitle>
