@@ -837,10 +837,14 @@ export type Database = {
           description: string | null
           estimated_hours: number | null
           id: string
+          is_recurring: boolean
           job_number: string
+          next_due_date: string | null
           order_type_id: string | null
           planner_id: string | null
           property_id: string | null
+          recurrence_interval: string | null
+          recurrence_start_date: string | null
           status: Database["public"]["Enums"]["job_status"]
           title: string
           trades: Database["public"]["Enums"]["trade_type"][]
@@ -855,10 +859,14 @@ export type Database = {
           description?: string | null
           estimated_hours?: number | null
           id?: string
+          is_recurring?: boolean
           job_number?: string
+          next_due_date?: string | null
           order_type_id?: string | null
           planner_id?: string | null
           property_id?: string | null
+          recurrence_interval?: string | null
+          recurrence_start_date?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
           trades?: Database["public"]["Enums"]["trade_type"][]
@@ -873,10 +881,14 @@ export type Database = {
           description?: string | null
           estimated_hours?: number | null
           id?: string
+          is_recurring?: boolean
           job_number?: string
+          next_due_date?: string | null
           order_type_id?: string | null
           planner_id?: string | null
           property_id?: string | null
+          recurrence_interval?: string | null
+          recurrence_start_date?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
           trades?: Database["public"]["Enums"]["trade_type"][]

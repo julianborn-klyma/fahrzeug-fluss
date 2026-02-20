@@ -75,6 +75,10 @@ export interface Job {
   description: string;
   estimated_hours: number;
   assigned_to: string[];
+  is_recurring: boolean;
+  recurrence_interval: 'monthly' | 'yearly' | 'biennial' | null;
+  recurrence_start_date: string | null;
+  next_due_date: string | null;
   created_at: string;
   updated_at: string;
   property?: Property;
