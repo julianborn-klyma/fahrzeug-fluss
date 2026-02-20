@@ -13,6 +13,7 @@ export interface Vehicle {
   type_id: string;
   driver_phone?: string;
   driver_name?: string;
+  owner_id?: string;
 }
 
 export interface UserVehicleAssignment {

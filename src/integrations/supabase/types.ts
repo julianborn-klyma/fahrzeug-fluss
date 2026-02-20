@@ -1652,6 +1652,7 @@ export type Database = {
           id: string
           license_plate: string
           name: string
+          owner_id: string | null
           type_id: string
         }
         Insert: {
@@ -1661,6 +1662,7 @@ export type Database = {
           id?: string
           license_plate: string
           name?: string
+          owner_id?: string | null
           type_id: string
         }
         Update: {
@@ -1670,6 +1672,7 @@ export type Database = {
           id?: string
           license_plate?: string
           name?: string
+          owner_id?: string | null
           type_id?: string
         }
         Relationships: [
