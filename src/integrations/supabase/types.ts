@@ -562,6 +562,47 @@ export type Database = {
           },
         ]
       }
+      job_appointment_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          job_appointment_id: string
+          override_vk: number | null
+          quantity: number
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type?: string
+          job_appointment_id: string
+          override_vk?: number | null
+          quantity?: number
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          job_appointment_id?: string
+          override_vk?: number | null
+          quantity?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_appointment_items_job_appointment_id_fkey"
+            columns: ["job_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "job_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_appointments: {
         Row: {
           appointment_type_id: string
@@ -863,6 +904,7 @@ export type Database = {
           next_due_date: string | null
           order_type_id: string | null
           planner_id: string | null
+          pricebook_id: string | null
           property_id: string | null
           recurrence_interval: string | null
           recurrence_start_date: string | null
@@ -885,6 +927,7 @@ export type Database = {
           next_due_date?: string | null
           order_type_id?: string | null
           planner_id?: string | null
+          pricebook_id?: string | null
           property_id?: string | null
           recurrence_interval?: string | null
           recurrence_start_date?: string | null
@@ -907,6 +950,7 @@ export type Database = {
           next_due_date?: string | null
           order_type_id?: string | null
           planner_id?: string | null
+          pricebook_id?: string | null
           property_id?: string | null
           recurrence_interval?: string | null
           recurrence_start_date?: string | null
@@ -943,6 +987,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "jobs_pricebook_id_fkey"
+            columns: ["pricebook_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulation_pricebooks"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "jobs_property_id_fkey"

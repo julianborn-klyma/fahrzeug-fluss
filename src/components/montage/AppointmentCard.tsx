@@ -26,12 +26,14 @@ import { toast } from 'sonner';
 import ChecklistDetailDialog from './ChecklistDetailDialog';
 import AppointmentStatusTimeline from './AppointmentStatusTimeline';
 import AppointmentFieldsEditor from './AppointmentFieldsEditor';
+import AppointmentProductsTab from './AppointmentProductsTab';
 
 interface AppointmentCardProps {
   appointment: any;
   jobId?: string;
   /** All documents uploaded for this job (used for completeness check) */
   jobDocuments?: any[];
+  pricebookId?: string | null;
 }
 
 import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_ORDER, type AppointmentStatus } from '@/types/montage';
@@ -45,7 +47,7 @@ const STATUS_VARIANTS: Record<AppointmentStatus, 'default' | 'secondary' | 'outl
   abgenommen: 'default',
 };
 
-const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: AppointmentCardProps) => {
+const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [], pricebookId }: AppointmentCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [showAddChecklist, setShowAddChecklist] = useState(false);
@@ -587,6 +589,7 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="products" className="flex-1">Produkte</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-3">
@@ -763,6 +766,14 @@ const AppointmentCard = ({ appointment: a, jobId, jobDocuments = [] }: Appointme
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="products">
+            <AppointmentProductsTab
+              appointmentId={a.id}
+              pricebookId={pricebookId || null}
+              readonly={currentStatus === 'abgenommen'}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
