@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle2, Circle, Clock, AlertCircle, Plus, Briefcase, MapPin, User, Calendar } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { useMyTasks } from '@/hooks/useTasks';
+import { useAllTasks } from '@/hooks/useTasks';
+import { useAuth } from '@/context/AuthContext';
 import CreateTaskDialog from '@/components/tasks/CreateTaskDialog';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 const ENTITY_LABELS: Record<string, { label: string; icon: any; pathFn: (id: string) => string }> = {
   job: { label: 'Auftrag', icon: Briefcase, pathFn: (id) => `/admin/montage/job/${id}` },
@@ -19,15 +22,35 @@ const ENTITY_LABELS: Record<string, { label: string; icon: any; pathFn: (id: str
 };
 
 const AdminTasks = () => {
-  const { tasks, isLoading, toggleTaskStatus } = useMyTasks();
+  const { tasks, isLoading, toggleTaskStatus } = useAllTasks();
+  const { user, hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [personFilter, setPersonFilter] = useState<string>('mine');
   const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const filtered = tasks.filter((t) => {
-    if (statusFilter === 'all') return true;
-    return t.status === statusFilter;
+  // Fetch all profiles for the person filter dropdown
+  const { data: profiles = [] } = useQuery({
+    queryKey: ['profiles-list'],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles').select('user_id, name, email').order('name');
+      if (error) throw error;
+      return data || [];
+    },
   });
+
+  const filtered = useMemo(() => {
+    return tasks.filter((t) => {
+      // Status filter
+      if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+      // Person filter
+      if (personFilter === 'mine') return t.assigned_to === user?.id;
+      if (personFilter === 'all') return true;
+      return t.assigned_to === personFilter;
+    });
+  }, [tasks, statusFilter, personFilter, user?.id]);
 
   const handleToggle = async (id: string, currentStatus: string) => {
     try {
@@ -38,17 +61,39 @@ const AdminTasks = () => {
     }
   };
 
+  const title = personFilter === 'mine'
+    ? 'Meine Aufgaben'
+    : personFilter === 'all'
+      ? 'Alle Aufgaben'
+      : `Aufgaben von ${profiles.find(p => p.user_id === personFilter)?.name || '…'}`;
+
   return (
     <AdminLayout>
       <div className="p-6 space-y-4 max-w-4xl mx-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Meine Aufgaben</h2>
+          <h2 className="text-lg font-bold">{title}</h2>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Select value={personFilter} onValueChange={setPersonFilter}>
+                <SelectTrigger className="w-[200px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[200] bg-popover">
+                  <SelectItem value="mine">Meine Aufgaben</SelectItem>
+                  <SelectItem value="all">Alle Aufgaben</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.name || p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px] h-9">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[200] bg-popover">
                 <SelectItem value="open">Offen</SelectItem>
                 <SelectItem value="closed">Geschlossen</SelectItem>
                 <SelectItem value="all">Alle</SelectItem>
@@ -91,6 +136,13 @@ const AdminTasks = () => {
                       <p className="text-xs text-muted-foreground truncate">{task.description}</p>
                     )}
                   </div>
+
+                  {/* Show assigned person name when viewing all or specific person */}
+                  {personFilter !== 'mine' && task.assigned_profile && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {task.assigned_profile.name}
+                    </span>
+                  )}
 
                   {entity && task.entity_id && (
                     <Badge
