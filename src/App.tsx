@@ -12,19 +12,20 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 
 // Retry wrapper for dynamic imports to handle Vite HMR/cache issues
-function lazyRetry(factory: () => Promise<any>, retries = 2) {
-  return lazy(() =>
-    factory().catch((err: any) => {
-      if (retries > 0) {
-        return new Promise<any>((resolve) => setTimeout(resolve, 500)).then(() =>
-          lazyRetry(factory, retries - 1) as any
-        );
-      }
-      // Force reload on persistent failure
-      window.location.reload();
-      throw err;
-    })
-  );
+function retryImport(factory: () => Promise<any>, retries = 2): Promise<any> {
+  return factory().catch((err: any) => {
+    if (retries > 0) {
+      return new Promise<any>((resolve) => setTimeout(resolve, 500)).then(() =>
+        retryImport(factory, retries - 1)
+      );
+    }
+    window.location.reload();
+    throw err;
+  });
+}
+
+function lazyRetry(factory: () => Promise<any>) {
+  return lazy(() => retryImport(factory));
 }
 
 const RoleSelectPage = lazyRetry(() => import("./pages/RoleSelectPage"));
