@@ -5,11 +5,12 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CheckSquare, Type, Camera, FolderOpen, ChevronRight, Pencil, Check, X, Upload, Trash2, ChevronLeft } from 'lucide-react';
+import { CheckSquare, Type, Camera, FolderOpen, ChevronRight, Pencil, Check, X, Upload, Trash2, ChevronLeft, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import PhotoAnnotationDialog from './PhotoAnnotationDialog';
+import { generateChecklistPdf } from '@/lib/checklistPdf';
 
 interface Props {
   checklistId: string | null;
@@ -95,6 +96,53 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
       return {
         ...data,
         steps: ((data as any).job_checklist_steps || []).sort((a: any, b: any) => a.order_index - b.order_index),
+      };
+    },
+  });
+
+  // Fetch appointment info for PDF context
+  const { data: appointmentInfo } = useQuery({
+    queryKey: ['checklist-appointment-info', checklist?.appointment_id, checklist?.job_id],
+    enabled: !!checklist && open,
+    queryFn: async () => {
+      let appt: any = null;
+      let job: any = null;
+      let assignees: string[] = [];
+
+      if (checklist?.appointment_id) {
+        const { data } = await supabase
+          .from('job_appointments')
+          .select('*, appointment_types(name)')
+          .eq('id', checklist.appointment_id)
+          .single();
+        appt = data;
+
+        // Get assignees
+        const { data: assigns } = await supabase
+          .from('job_appointment_assignments')
+          .select('person_name')
+          .eq('job_appointment_id', checklist.appointment_id);
+        assignees = (assigns || []).map((a: any) => a.person_name).filter(Boolean);
+      }
+
+      if (checklist?.job_id) {
+        const { data } = await supabase
+          .from('jobs')
+          .select('title, job_number')
+          .eq('id', checklist.job_id)
+          .single();
+        job = data;
+      }
+
+      return {
+        typeName: appt?.appointment_types?.name,
+        startDate: appt?.start_date,
+        endDate: appt?.end_date,
+        status: appt?.status,
+        notes: appt?.notes,
+        jobTitle: job?.title,
+        jobNumber: job?.job_number,
+        assignees,
       };
     },
   });
@@ -377,10 +425,32 @@ const ChecklistDetailDialog: React.FC<Props> = ({ checklistId, open, onOpenChang
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5" />
-              {checklist?.name || 'Checkliste'}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5" />
+                {checklist?.name || 'Checkliste'}
+              </DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={async () => {
+                  if (!checklist) return;
+                  toast.info('PDF wird erstellt…');
+                  try {
+                    await generateChecklistPdf(
+                      { name: checklist.name, status: checklist.status, steps },
+                      appointmentInfo || {},
+                    );
+                    toast.success('PDF heruntergeladen.');
+                  } catch {
+                    toast.error('Fehler beim Erstellen der PDF.');
+                  }
+                }}
+              >
+                <Download className="h-3.5 w-3.5" /> PDF
+              </Button>
+            </div>
           </DialogHeader>
 
           {/* Hidden multi-file input */}
